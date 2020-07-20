@@ -58,6 +58,7 @@ def protect_firmware(infile, outfile, version, message):
 
     final_output = b'' #Final output?
 
+
     for i, chunk in enumerate(chunks):
 
         #Set up AES Cipher
@@ -82,9 +83,9 @@ def protect_firmware(infile, outfile, version, message):
     #More Testing
     # print(final_output)
 
-#     Write firmware blob to outfile
-    with open(outfile, 'wb+') as outfile:
-        outfile.write()
+    # Write firmware blob to outfile
+    # with open(outfile, 'wb+') as outfile:
+    #     outfile.write(firmware_blob)
 
 
 
