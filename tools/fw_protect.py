@@ -81,6 +81,16 @@ def protect_firmware(infile, outfile, version, message):
 
     #More Testing
     # print(final_output)
+    
+    # Add release message
+
+    aes_cipher = AES.new(key, AES.MODE_GCM)
+    #Set up metadata
+    metadata = struct.pack('<hhhh', len(pad(msg, BLOCK_SIZE)), version, len(firmware), -1)
+    aes_cipher.update(metadata)
+    #Get Cipher Text
+    ciphertext, tag = aes_cipher.encrypt_and_digest(pad(chunk, BLOCK_SIZE))
+    final_output += (metadata + aes_cipher.nonce + tag + ciphertext)
 
 #     Write firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
