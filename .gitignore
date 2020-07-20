@@ -1,0 +1,5 @@
+# Build outputs
+bootloader/gcc/
+firmware/firmware/gcc/
+tools/secret_build_output.txt
+
