@@ -16,8 +16,12 @@ def protect_firmware(infile, outfile, version, message):
     BLOCK_SIZE = 16
 
     #     # Load firmware binary from infile
-        with open(infile, 'rb') as fp:
-            firmware = fp.read()
+    with open(infile, 'rb') as fp:
+        firmware = fp.read()
+    
+    with open('secret_output_file.txt', 'rb') as fp:
+        key = fp.read()
+         
 
     #Load test_firmware Binary
 #     with open("test_firmware.bin", 'rb') as fp:
