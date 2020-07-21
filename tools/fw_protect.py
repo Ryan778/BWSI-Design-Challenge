@@ -7,37 +7,33 @@ import struct
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
 
 
 def protect_firmware(infile, outfile, version, message):
+
+    
 
     #Define constants
     CHUNK_SIZE = 1000
     BLOCK_SIZE = 16
 
-    #     # Load firmware binary from infile
+    # Load firmware binary from infile
     with open(infile, 'rb') as fp:
         firmware = fp.read()
+        
+    #Load in Keys
     
-    with open('secret_output_file.txt', 'rb') as fp:
-        key = fp.read()
-         
+    with open('secret_build_output.txt', 'rb') as fp:
+        secrets = fp.read()
 
-    #Load test_firmware Binary
-#     with open("test_firmware.bin", 'rb') as fp:
-#         firmware = fp.read()
-
-#     message = "YEEEEEEEEEEEEEEEEEEEEET"
-
-#     version = 3
-
-#     print(len(firmware))
-
+    key = secrets[0:16]
+    rsa_key = RSA.import_key(secrets[16:])
+    
     # Create variable to hold message
     msg = message.encode() + b'\00'
-
-    # Pack version and size into two little-endian shorts
-    # metadata = struct.pack('<HH', version, len(firmware))
 
     #Split firmware into 1K chunks
 
@@ -54,24 +50,30 @@ def protect_firmware(infile, outfile, version, message):
 
     #Encrypt each chunk
 
-    #Initialize AES
+    #Initialize AES & RSA Keys for testing. 
 
-#     key = get_random_bytes(16) #For Testing Purposes only
+    key = get_random_bytes(16) #For Testing Purposes only
+    rsa_key = RSA.generate(2048) #For Testing Purposes only
+
 
     #Encrypt each Chunk with AES
 
     final_output = b'' #Final output?
+
 
     for i, chunk in enumerate(chunks):
 
         #Set up AES Cipher
         aes_cipher = AES.new(key, AES.MODE_GCM)
         #Set up metadata
-        metadata = struct.pack('<HHHH', len(pad(chunk, BLOCK_SIZE)), version, len(firmware), i)
+        metadata = struct.pack('<hhhh', len(pad(chunk, BLOCK_SIZE)), version, len(firmware), i)
         aes_cipher.update(metadata)
 
         #Get Cipher Text
         ciphertext, tag = aes_cipher.encrypt_and_digest(pad(chunk, BLOCK_SIZE))
+
+        h = SHA256.new(ciphertext)
+        signature = pkcs1_15.new(rsa_key).sign(h)
 
         #THings for testing :D
     #     print(metadata)
@@ -79,13 +81,12 @@ def protect_firmware(infile, outfile, version, message):
     #     print(len(ciphertext))
     #     print(tag)
     #     print(len(tag))
+#         print(signature)
+#         print(len(signature))
 
         #Add result to final output
-        final_output += (metadata + aes_cipher.nonce + tag + ciphertext)
+        final_output += (signature + metadata + aes_cipher.nonce + tag + ciphertext)
 
-    #More Testing
-    # print(final_output)
-    
     # Add release message
 
     aes_cipher = AES.new(key, AES.MODE_GCM)
@@ -96,7 +97,11 @@ def protect_firmware(infile, outfile, version, message):
     ciphertext, tag = aes_cipher.encrypt_and_digest(pad(chunk, BLOCK_SIZE))
     final_output += (metadata + aes_cipher.nonce + tag + ciphertext)
 
-#     Write firmware blob to outfile
+    #More Testing
+    print(final_output)
+    print(len(final_output))
+
+    #     Write firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
         outfile.write()
 
