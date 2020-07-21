@@ -23,22 +23,17 @@ def protect_firmware(infile, outfile, version, message):
     # Load firmware binary from infile
     with open(infile, 'rb') as fp:
         firmware = fp.read()
+        
+    #Load in Keys
+    
+    with open('secret_build_output.txt', 'rb') as fp:
+        secrets = fp.read()
 
-    #Load test_firmware Binary
-#     with open("test_firmware.bin", 'rb') as fp:
-#         firmware = fp.read()
-
-#     message = "YEEEEEEEEEEEEEEEEEEEEET"
-
-#     version = 3
-
-#     print(len(firmware))
-
+    key = secrets[0:16]
+    rsa_key = RSA.import_key(secrets[16:])
+    
     # Create variable to hold message
     msg = message.encode() + b'\00'
-
-    # Pack version and size into two little-endian shorts
-    # metadata = struct.pack('<HH', version, len(firmware))
 
     #Split firmware into 1K chunks
 
