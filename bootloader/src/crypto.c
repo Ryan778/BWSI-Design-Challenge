@@ -53,6 +53,12 @@ int aes_gcm(){
 }
 
 int rsa_decrypt(){
-    
+    br_rsa_pkcs1_vrfy fvrfy;
+    br_rsa_public_key RSA_PK; //rsa public key
+    fvrfy(signature, sizeof signature, BR_HASH_OID_SHA256, sizeof output_hash_buffer, &RSA_PK, output_hash_buffer)
+    // compare hash to the hash of the message
+    if(output_hash_buffer == msg_hash){
+        //yay!
+    }
 }
 
