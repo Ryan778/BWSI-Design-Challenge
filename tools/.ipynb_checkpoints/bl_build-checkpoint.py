@@ -10,11 +10,9 @@ import os
 import pathlib
 import shutil
 import subprocess
-<<<<<<< HEAD
 
 FILE_DIR = pathlib.Path(__file__).parent.absolute()
 
-=======
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
@@ -53,7 +51,6 @@ def generate_keys():
     os.chdir(FILE_DIR)
     with open('secret_build_output.txt', 'wb') as file: 
         file.write(newkey) # Write AES key into secret file as binary bytes (to be used by fw_protect)
->>>>>>> c64f90e9c2a9a3c6d40832d6f0c855752b12a962
 
 def copy_initial_firmware(binary_path):
     """
@@ -66,10 +63,6 @@ def copy_initial_firmware(binary_path):
     bootloader = FILE_DIR / '..' / 'bootloader'
     shutil.copy(binary_path, bootloader / 'src' / 'firmware.bin')
 
-<<<<<<< HEAD
-
-=======
->>>>>>> c64f90e9c2a9a3c6d40832d6f0c855752b12a962
 def make_bootloader():
     """
     Build the bootloader from source.
@@ -103,8 +96,5 @@ if __name__ == '__main__':
                 binary_path))
 
     copy_initial_firmware(binary_path)
-<<<<<<< HEAD
-=======
     generate_keys()
->>>>>>> c64f90e9c2a9a3c6d40832d6f0c855752b12a962
     make_bootloader()
