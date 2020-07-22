@@ -16,6 +16,9 @@ from Crypto.Random import get_random_bytes
 
 FILE_DIR = pathlib.Path(__file__).parent.absolute()
 
+def to_c_array(binary_string):
+	return "{" + ",".join([hex(c) for c in binary_string]) + "}"
+
 def generate_keys(): 
     """
     Generates a 2048 bit RSA public/private key pair and a 128 bit AES key. 
@@ -26,6 +29,7 @@ def generate_keys():
     aeskey = get_random_bytes(16)
     rsakey = RSA.generate(2048)
 
+    """ Old, bad(?) implementation. We're not using this anymore. To be fair, we never really got an explanation of why it was bad to directly write into bootloader.c, then make, then remove the key, but it was phased out to promote using the proper way instead nonetheless.  
     # Change into directory containing bootloader source.
     bldir = FILE_DIR / '..' / 'bootloader' / 'src'
     os.chdir(bldir)
@@ -44,6 +48,7 @@ def generate_keys():
     with open('bootloader.c', 'a') as file:
         file.write(bootloader) # Append rest of the bootloader code back on
         file.close()
+    """
     
     # Change into directory containing tools
     os.chdir(FILE_DIR)
@@ -82,7 +87,7 @@ def make_bootloader(AES_KEY):
 
     subprocess.call('make clean', shell=True)
 #     status = subprocess.call(f'make AES_KEY="{AES_KEY}"')
-    status = subprocess.call(f'make')
+    status = subprocess.call(f'make AES_KEY={to_c_array(AES_KEY)}', shell=True)
 
     # Return True if make returned 0, otherwise return False.
     return (status == 0)
