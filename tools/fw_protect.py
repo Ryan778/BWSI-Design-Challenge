@@ -14,7 +14,7 @@ from Crypto.PublicKey import RSA
 
 def protect_firmware(infile, outfile, version, message):
     #Define constants
-    CHUNK_SIZE = 1000
+    CHUNK_SIZE = 1024
     BLOCK_SIZE = 16
 
     # Load firmware binary from infile
@@ -64,12 +64,20 @@ def protect_firmware(infile, outfile, version, message):
 
         #Set up AES Cipher
         aes_cipher = AES.new(key, AES.MODE_GCM)
+        
         #Set up metadata
-        metadata = struct.pack('<hhhh', len(chunk), version, len(firmware), i)
+        metadata = struct.pack('<hhhh', len(firmware), version, len(chunk), i)
         aes_cipher.update(metadata)
+        
+        #padded text
+        processed_plain = b''
+        if(len(chunk) == CHUNK_SIZE):
+            processed_plain = chunk
+        else:
+            processed_plain = pad(chunk, BLOCK_SIZE)
 
         #Get Cipher Text
-        ciphertext, tag = aes_cipher.encrypt_and_digest(pad(chunk, BLOCK_SIZE))
+        ciphertext, tag = aes_cipher.encrypt_and_digest(processed_plain)
 
         #THings for testing :D
     #     print(metadata)
@@ -85,7 +93,7 @@ def protect_firmware(infile, outfile, version, message):
 
     aes_cipher = AES.new(key, AES.MODE_GCM)
     #Set up metadata
-    metadata = struct.pack('<hhhh', len(pad(msg, BLOCK_SIZE)), version, len(firmware), -1)
+    metadata = struct.pack('<hhhh', len(msg), version, len(firmware), -1)
     aes_cipher.update(metadata)
     #Get Cipher Text
     ciphertext, tag = aes_cipher.encrypt_and_digest(pad(msg, BLOCK_SIZE))
