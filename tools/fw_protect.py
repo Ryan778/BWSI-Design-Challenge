@@ -94,9 +94,9 @@ def protect_firmware(infile, outfile, version, message):
     #More Testing
     print(final_output)
 
-    Write firmware blob to outfile
+#     Write firmware blob to outfile
     with open(outfile, 'wb+') as outfile:
-        outfile.write(firmware_blob)
+        outfile.write(final_output)
 
 
 def decrypt(nonce_var, metadata, cipher_text, tag_var, key):
