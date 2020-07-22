@@ -56,17 +56,19 @@ UART=${LIB}/uart
 BEARSSL=${LIB}/BearSSL
 
 #
-# Encryption keys
-#
-AES_KEY ?= abababababababab
-
-#
 # Include the common make definitions.
 #
 # include ${STELLARIS}/makedefs
 include ./makedefs
 
 CFLAGS+=-g
+
+#
+# Encryption keys
+#
+CFLAGS+=-D AES_KEY={AES_KEY}
+#CFLAGS+=-D RSA_KEY={RSA_KEY} # to be implemented later
+#CFLAGS+=-D RSA_N={RSA_N}
 
 #
 # Where to find header files that do not live in this directory.
