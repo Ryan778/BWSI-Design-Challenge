@@ -91,8 +91,8 @@ if __name__ == '__main__':
     while len(encrypted) > 0: 
         curChunk += 1
         print('Now on: Chunk', curChunk)
-        chunk = encrypted[0:1048]
-        encrypted = encrypted[1048:]
+        chunk = encrypted[0:1064]
+        encrypted = encrypted[1064:]
         
         metadata = chunk[0:8]
         print(f'> Metadata: {metadata}')
