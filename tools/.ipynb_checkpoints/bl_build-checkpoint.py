@@ -10,6 +10,9 @@ import os
 import pathlib
 import shutil
 import subprocess
+
+FILE_DIR = pathlib.Path(__file__).parent.absolute()
+
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes

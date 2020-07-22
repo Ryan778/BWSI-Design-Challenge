@@ -55,6 +55,10 @@ STELLARIS=${LIB}/stellaris
 UART=${LIB}/uart
 BEARSSL=${LIB}/BearSSL
 
+#
+# Encryption keys
+#
+AES_KEY ?= abababababababab
 
 #
 # Include the common make definitions.

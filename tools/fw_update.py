@@ -25,8 +25,10 @@ import time
 from serial import Serial
 
 RESP_OK = b'\x00'
+RESP_ERR = b'\x01'
 FRAME_SIZE = 16
 
+error_counter = 0
 
 def send_metadata(ser, metadata, debug=False):
     version, size = struct.unpack_from('<HH', metadata)
@@ -49,7 +51,7 @@ def send_metadata(ser, metadata, debug=False):
     resp = ser.read()
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-
+        
 
 def send_frame(ser, frame, debug=False):
     ser.write(frame)  # Write the frame...
@@ -66,7 +68,12 @@ def send_frame(ser, frame, debug=False):
 
     if debug:
         print("Resp: {}".format(ord(resp)))
-
+        
+    #If the bootloader receives a one byte, resend the data and increment counter
+    if resp == RESP_ERR:
+        error_counter += 1
+        send_frame(ser, frame, debug=debug)
+        
 
 def main(ser, infile, debug):
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
@@ -75,6 +82,8 @@ def main(ser, infile, debug):
 
     metadata = firmware_blob[:4]
     firmware = firmware_blob[4:]
+    
+    error_count = 0
 
     send_metadata(ser, metadata, debug=debug)
 
@@ -87,7 +96,12 @@ def main(ser, infile, debug):
 
         # Construct frame.
         frame = struct.pack(frame_fmt, length, data)
-
+        
+        #If there are more than ten errors in a row, then restart the update.
+        if error_counter >10:
+            print("Terminating, restarting update...")
+            return 
+        
         if debug:
             print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
 
@@ -95,7 +109,7 @@ def main(ser, infile, debug):
 
     print("Done writing firmware.")
 
-    # Send a zero length payload to tell the bootlader to finish writing it's page.
+    # Send a zero length payload to tell the bootlader to finish writing its page.
     ser.write(struct.pack('>H', 0x0000))
 
     return ser
@@ -115,5 +129,3 @@ if __name__ == '__main__':
     print('Opening serial port...')
     ser = Serial(args.port, baudrate=115200, timeout=2)
     main(ser=ser, infile=args.firmware, debug=args.debug)
-
-
