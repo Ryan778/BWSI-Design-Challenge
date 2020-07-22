@@ -65,7 +65,7 @@ def protect_firmware(infile, outfile, version, message):
         #Set up AES Cipher
         aes_cipher = AES.new(key, AES.MODE_GCM)
         #Set up metadata
-        metadata = struct.pack('<hhhh', len(pad(chunk, BLOCK_SIZE)), version, len(firmware), i)
+        metadata = struct.pack('<hhhh', len(chunk), version, len(firmware), i)
         aes_cipher.update(metadata)
 
         #Get Cipher Text
