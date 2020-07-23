@@ -14,12 +14,15 @@ from Crypto.PublicKey import RSA
 
 def protect_firmware(infile, outfile, version, message):
     #Define constants
-    CHUNK_SIZE = 1000
+    CHUNK_SIZE = 1024
     BLOCK_SIZE = 16
 
     # Load firmware binary from infile
     with open(infile, 'rb') as fp:
         firmware = fp.read()
+        
+    print("Firmware Size")
+    print(len(firmware))
         
     #Load in Keys
     
@@ -48,6 +51,9 @@ def protect_firmware(infile, outfile, version, message):
 
     if(CHUNK_SIZE * (chunks_needed) - len(firmware) != 0):
         chunks.append(firmware[CHUNK_SIZE * (chunks_needed):])
+        
+    for chunk in chunks:
+        print(len(chunk))
 
     #Encrypt each chunk
 
@@ -64,28 +70,37 @@ def protect_firmware(infile, outfile, version, message):
 
         #Set up AES Cipher
         aes_cipher = AES.new(key, AES.MODE_GCM)
+        
         #Set up metadata
-        metadata = struct.pack('<hhhh', len(pad(chunk, BLOCK_SIZE)), version, len(firmware), i)
+        metadata = struct.pack('<hhhh', len(firmware), version, len(chunk), i)
         aes_cipher.update(metadata)
+        
+        #padded text
+        processed_plain = b''
+        if(len(chunk) == CHUNK_SIZE):
+            processed_plain = chunk
+        else:
+            processed_plain = pad(chunk, BLOCK_SIZE)
 
         #Get Cipher Text
-        ciphertext, tag = aes_cipher.encrypt_and_digest(pad(chunk, BLOCK_SIZE))
+        ciphertext, tag = aes_cipher.encrypt_and_digest(processed_plain)
 
         #THings for testing :D
     #     print(metadata)
     #     print(ciphertext)
-    #     print(len(ciphertext))
-    #     print(tag)
+        print(len(ciphertext))
+#         print(tag)
     #     print(len(tag))
 
         #Add result to final output
         final_output += (metadata + aes_cipher.nonce + tag + ciphertext)
+        print(len(final_output))
 
     # Add release message
 
     aes_cipher = AES.new(key, AES.MODE_GCM)
     #Set up metadata
-    metadata = struct.pack('<hhhh', len(pad(msg, BLOCK_SIZE)), version, len(firmware), -1)
+    metadata = struct.pack('<hhhh', len(msg), version, len(firmware), -1)
     aes_cipher.update(metadata)
     #Get Cipher Text
     ciphertext, tag = aes_cipher.encrypt_and_digest(pad(msg, BLOCK_SIZE))
@@ -95,8 +110,10 @@ def protect_firmware(infile, outfile, version, message):
     print(final_output)
 
 #     Write firmware blob to outfile
-    with open(outfile, 'wb+') as outfile:
+    with open(outfile, 'wb') as outfile:
         outfile.write(final_output)
+        
+    
 
 
 def decrypt(nonce_var, metadata, cipher_text, tag_var, key):
@@ -108,6 +125,8 @@ def decrypt(nonce_var, metadata, cipher_text, tag_var, key):
         print(plaintext)
     except ValueError:
         print("AIYA")
+        
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Firmware Update Tool')
