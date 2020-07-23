@@ -69,7 +69,7 @@ def send_frame(ser, frame, debug=False):
     if debug:
         print("Resp: {}".format(ord(resp)))
         
-    #If the bootloader receives a one byte, resend the data and increment counter
+    #If the bootloader receives a one byte, resend the frame and increment error counter
     if resp == RESP_ERR:
         error_counter += 1
         send_frame(ser, frame, debug=debug)
@@ -98,9 +98,9 @@ def main(ser, infile, debug):
         frame = struct.pack(frame_fmt, length, data)
         
         #If there are more than ten errors in a row, then restart the update.
-        if error_counter >10:
+        if error_counter > 10:
             print("Terminating, restarting update...")
-            return 
+            return
         
         if debug:
             print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
