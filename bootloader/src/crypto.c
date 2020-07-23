@@ -15,6 +15,12 @@
 // Define lengths
 #define KEY_LEN 0x10
 #define NONCE_LEN 0x10
+
+static const br_rsa_public_key RSA_PK = {
+	(void *)RSA_N, sizeof RSA_N,
+	(void *)RSA_E, sizeof RSA_E
+};
+
 int main(){
 
     return 0;

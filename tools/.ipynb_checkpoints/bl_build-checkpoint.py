@@ -10,14 +10,14 @@ import os
 import pathlib
 import shutil
 import subprocess
-
-FILE_DIR = pathlib.Path(__file__).parent.absolute()
-
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 
 FILE_DIR = pathlib.Path(__file__).parent.absolute()
+
+def to_c_array(binary_string):
+	return "{" + ",".join([hex(c) for c in binary_string]) + "}"
 
 def generate_keys(): 
     """
@@ -26,8 +26,10 @@ def generate_keys():
     Return:
         None
     """
-    newkey = get_random_bytes(16)
+    aeskey = get_random_bytes(16)
+    rsakey = RSA.generate(2048)
 
+    """ Old, bad(?) implementation. We're not using this anymore. To be fair, we never really got an explanation of why it was bad to directly write into bootloader.c, then make, then remove the key, but it was phased out to promote using the proper way instead nonetheless.  
     # Change into directory containing bootloader source.
     bldir = FILE_DIR / '..' / 'bootloader' / 'src'
     os.chdir(bldir)
@@ -37,7 +39,7 @@ def generate_keys():
             bootloader = bootloader[bootloader.index('\n')+1:] # Remove old key
         byteout = ''
         for i in range(16): 
-            byteout += ', 0x' + newkey[i:i+1].hex() # Write the bytes in hex form for C implementation (0xXX, etc.)
+            byteout += ', 0x' + aeskey[i:i+1].hex() # Write the bytes in hex form for C implementation (0xXX, etc.)
         byteout = byteout[2:]
         file.close()
     with open('bootloader.c', 'w') as file:
@@ -46,11 +48,16 @@ def generate_keys():
     with open('bootloader.c', 'a') as file:
         file.write(bootloader) # Append rest of the bootloader code back on
         file.close()
+    """
     
     # Change into directory containing tools
     os.chdir(FILE_DIR)
     with open('secret_build_output.txt', 'wb') as file: 
-        file.write(newkey) # Write AES key into secret file as binary bytes (to be used by fw_protect)
+        file.write(aeskey) # Write AES key into secret file as binary bytes (to be used by fw_protect)
+        file.write(rsakey.export_key(format='DER')) # Write RSA key 
+#         file.write(rsakey.publickey().export_key())
+    
+    make_bootloader(aeskey)
 
 def copy_initial_firmware(binary_path):
     """
@@ -62,8 +69,12 @@ def copy_initial_firmware(binary_path):
     os.chdir(FILE_DIR)
     bootloader = FILE_DIR / '..' / 'bootloader'
     shutil.copy(binary_path, bootloader / 'src' / 'firmware.bin')
+    
+    # Put secret key into directory (gen by cryptoDome)
+    
 
-def make_bootloader():
+
+def make_bootloader(AES_KEY):
     """
     Build the bootloader from source.
 
@@ -75,7 +86,8 @@ def make_bootloader():
     os.chdir(bootloader)
 
     subprocess.call('make clean', shell=True)
-    status = subprocess.call('make')
+#     status = subprocess.call(f'make AES_KEY="{AES_KEY}"')
+    status = subprocess.call(f'make AES_KEY={to_c_array(AES_KEY)}', shell=True)
 
     # Return True if make returned 0, otherwise return False.
     return (status == 0)
@@ -97,4 +109,3 @@ if __name__ == '__main__':
 
     copy_initial_firmware(binary_path)
     generate_keys()
-    make_bootloader()

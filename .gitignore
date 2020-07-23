@@ -3,3 +3,5 @@ bootloader/gcc/
 firmware/firmware/gcc/
 tools/secret_build_output.txt
 
+bootloader/.ipynb_checkpoints
+tools/.ipynb_checkpoints
