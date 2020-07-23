@@ -55,6 +55,7 @@ def generate_keys():
     with open('secret_build_output.txt', 'wb') as file: 
         file.write(aeskey) # Write AES key into secret file as binary bytes (to be used by fw_protect)
         file.write(rsakey.export_key(format='DER')) # Write RSA key 
+        print(len(rsakey.export_key(format='DER')))
 #         file.write(rsakey.publickey().export_key())
     
     st = make_bootloader(aeskey)

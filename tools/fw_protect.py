@@ -30,8 +30,12 @@ def protect_firmware(infile, outfile, version, message):
         secrets = fp.read()
 
     key = secrets[0:16]
+    rsa_key = RSA.import_key(secrets[16:])
+    
+    print("KEYS")
     
 #     print(key)
+    print(rsa_key.size_in_bytes())
 
     # Create variable to hold message
     msg = message.encode() + b'\00'
@@ -72,7 +76,7 @@ def protect_firmware(infile, outfile, version, message):
         aes_cipher = AES.new(key, AES.MODE_GCM)
         
         #Set up metadata
-        metadata = struct.pack('<hhhh', len(firmware), version, len(chunk), i)
+        metadata = struct.pack('<hhhh', version, len(firmware), i,  len(chunk) )
         aes_cipher.update(metadata)
         
         #padded text
@@ -84,27 +88,35 @@ def protect_firmware(infile, outfile, version, message):
 
         #Get Cipher Text
         ciphertext, tag = aes_cipher.encrypt_and_digest(processed_plain)
+        
+        #Get RSA Signature
+        h = SHA256.new(ciphertext)
+        signature = pkcs1_15.new(rsa_key).sign(h)
 
         #THings for testing :D
     #     print(metadata)
     #     print(ciphertext)
-        print(len(ciphertext))
+#         print(len(ciphertext))
 #         print(tag)
     #     print(len(tag))
 
         #Add result to final output
-        final_output += (metadata + aes_cipher.nonce + tag + ciphertext)
+        final_output += (metadata + aes_cipher.nonce + tag + signature + ciphertext)
         print(len(final_output))
 
     # Add release message
 
     aes_cipher = AES.new(key, AES.MODE_GCM)
     #Set up metadata
-    metadata = struct.pack('<hhhh', len(msg), version, len(firmware), -1)
+    metadata = struct.pack('<hhhh', version, len(firmware), -1,  len(message) )
     aes_cipher.update(metadata)
     #Get Cipher Text
     ciphertext, tag = aes_cipher.encrypt_and_digest(pad(msg, BLOCK_SIZE))
-    final_output += (metadata + aes_cipher.nonce + tag + ciphertext)
+    #Get RSA Signature
+    h = SHA256.new(ciphertext)
+    signature = pkcs1_15.new(rsa_key).sign(h)
+    #Final output
+    final_output += (metadata + aes_cipher.nonce + tag + signature + ciphertext)
 
     #More Testing
     print(final_output)
@@ -113,8 +125,6 @@ def protect_firmware(infile, outfile, version, message):
     with open(outfile, 'wb') as outfile:
         outfile.write(final_output)
         
-    
-
 
 def decrypt(nonce_var, metadata, cipher_text, tag_var, key):
     try:
@@ -125,6 +135,16 @@ def decrypt(nonce_var, metadata, cipher_text, tag_var, key):
         print(plaintext)
     except ValueError:
         print("AIYA")
+        
+def verify_rsa(ciphertext, key, signature):
+    try:
+        h = SHA256.new(ciphertext)
+        pkcs1_15.new(key).verify(h, signature)
+        print("yay")
+        return 1
+    except ValueError:
+        print("Fail. Wrong Value")
+        return 0
         
     
 
