@@ -1,4 +1,3 @@
 C.I.A. Test Suite
 
-✅ [1] bl_build.py runs without any errors
-✅ [2] fw_protect.py runs without any errors
+❌ [1] bl_build.py runs without any errors

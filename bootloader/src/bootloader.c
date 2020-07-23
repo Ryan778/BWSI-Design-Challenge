@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-char AES_KEY[16] = {0x36, 0x81, 0x25, 0xcf, 0x5d, 0x52, 0xc0, 0xf3, 0x99, 0xb6, 0xd5, 0x1f, 0xba, 0x34, 0x9e, 0x00};
-=======
 char aes_key[16] = AES_KEY;
 
->>>>>>> f761a0ef8641d8be89ad7a5fa201a68a324f6075
 // Hardware Imports
 #include "inc/hw_memmap.h" // Peripheral Base Addresses
 #include "inc/lm3s6965.h"  // Peripheral Bit Masks and Registers

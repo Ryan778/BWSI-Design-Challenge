@@ -57,7 +57,9 @@ def generate_keys():
         file.write(rsakey.export_key(format='DER')) # Write RSA key 
 #         file.write(rsakey.publickey().export_key())
     
-    make_bootloader(aeskey)
+    st = make_bootloader(aeskey)
+    if st != 0: # Throw error if build failed
+        raise SystemExit(f'Build Failed - Make returned code {st}')
 
 def copy_initial_firmware(binary_path):
     """
@@ -89,8 +91,8 @@ def make_bootloader(AES_KEY):
 #     status = subprocess.call(f'make AES_KEY="{AES_KEY}"')
     status = subprocess.call(f'make AES_KEY={to_c_array(AES_KEY)}', shell=True)
 
-    # Return True if make returned 0, otherwise return False.
-    return (status == 0)
+    # Return status of make.
+    return status
 
 
 if __name__ == '__main__':
