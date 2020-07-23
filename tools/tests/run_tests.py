@@ -11,6 +11,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import struct
 
 FILE_DIR = pathlib.Path(__file__).parent.absolute()
 
@@ -88,19 +89,31 @@ if __name__ == '__main__':
         encrypted = fp.read()
     
     curChunk = 0
+    print(f'> Size: {len(encrypted)}')
     while len(encrypted) > 0: 
         curChunk += 1
         print('Now on: Chunk', curChunk)
         chunk = encrypted[0:1064]
-        encrypted = encrypted[1064:]
         
         metadata = chunk[0:8]
+        chunk_length = struct.unpack("<hhhh", metadata)[2]
+        if chunk_length % 16 != 0:
+            chunk_length += 16 - (chunk_length % 16)
+        chunk = chunk[0:chunk_length + 40]
         print(f'> Metadata: {metadata}')
+        print(f'> Metadata: {chunk_length}')
+        
+        encrypted = encrypted[(chunk_length + 40):]
+        print(f'> Encrypted: {len(encrypted)}')
+        
+        
         nonce = chunk[8:24]
         print(f'> Nonce: {nonce}')
         tag = chunk[24:40]
         print(f'> Tag: {tag}')
         ciphertext = chunk[40:]
+#         print(f'> cipher: {ciphertext}')
+        print(f'> cipherlen: {len(ciphertext)}')
         
         out = aes_decrypt(nonce, metadata, ciphertext, tag, aes_key, curChunk)
         if out != '':

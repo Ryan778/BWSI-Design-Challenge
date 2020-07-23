@@ -21,6 +21,9 @@ def protect_firmware(infile, outfile, version, message):
     with open(infile, 'rb') as fp:
         firmware = fp.read()
         
+    print("Firmware Size")
+    print(len(firmware))
+        
     #Load in Keys
     
     with open('secret_build_output.txt', 'rb') as fp:
@@ -48,6 +51,9 @@ def protect_firmware(infile, outfile, version, message):
 
     if(CHUNK_SIZE * (chunks_needed) - len(firmware) != 0):
         chunks.append(firmware[CHUNK_SIZE * (chunks_needed):])
+        
+    for chunk in chunks:
+        print(len(chunk))
 
     #Encrypt each chunk
 
@@ -82,12 +88,13 @@ def protect_firmware(infile, outfile, version, message):
         #THings for testing :D
     #     print(metadata)
     #     print(ciphertext)
-    #     print(len(ciphertext))
-    #     print(tag)
+        print(len(ciphertext))
+#         print(tag)
     #     print(len(tag))
 
         #Add result to final output
         final_output += (metadata + aes_cipher.nonce + tag + ciphertext)
+        print(len(final_output))
 
     # Add release message
 
@@ -103,8 +110,10 @@ def protect_firmware(infile, outfile, version, message):
     print(final_output)
 
 #     Write firmware blob to outfile
-    with open(outfile, 'wb+') as outfile:
+    with open(outfile, 'wb') as outfile:
         outfile.write(final_output)
+        
+    
 
 
 def decrypt(nonce_var, metadata, cipher_text, tag_var, key):
@@ -116,6 +125,8 @@ def decrypt(nonce_var, metadata, cipher_text, tag_var, key):
         print(plaintext)
     except ValueError:
         print("AIYA")
+        
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Firmware Update Tool')
