@@ -19,6 +19,11 @@ char aes_key[16] = AES_KEY;
 #include <string.h>
 #include <math.h>
 
+void load_initial_firmware(void);
+void load_firmware(void);
+void boot_firmware(void);
+long program_flash(uint32_t, unsigned char*, unsigned int);
+
 // Firmware Constants
 #define METADATA_BASE 0x0000FC00  // base address of version and firmware size in Flash
 #define FW_BASE       0x00010000  // base address of firmware in Flash
