@@ -27,10 +27,11 @@ from serial import Serial
 RESP_OK = b'\x00'
 RESP_ERR = b'\x01'
 FRAME_SIZE = 16
+PACKET_SIZE = 1064
 
 error_counter = 0
 
-def send_metadata(ser, metadata, debug=False):
+def send_metadata(ser, metadata, nonce, tag, debug=False):
     version, size = struct.unpack_from('<HH', metadata)
     print(f'Version: {version}\nSize: {size} bytes\n')
 
@@ -41,17 +42,18 @@ def send_metadata(ser, metadata, debug=False):
     while ser.read(1).decode() != 'U':
         pass
 
-    # Send size and version to bootloader.
+    # Send the metadata to bootloader.
     if debug:
         print(metadata)
 
     ser.write(metadata)
+    ser.write(nonce)
+    ser.write(tag)
 
     # Wait for an OK from the bootloader.
     resp = ser.read()
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-        
 
 def send_frame(ser, frame, debug=False):
     ser.write(frame)  # Write the frame...
@@ -80,37 +82,48 @@ def main(ser, infile, debug):
     with open(infile, 'rb') as fp:
         firmware_blob = fp.read()
 
-    metadata = firmware_blob[:4]
-    firmware = firmware_blob[4:]
+    metadata = firmware_blob[:8]
+    nonce = firmware_blob[8:24]
+    tag = firmware_blob[24:40]
+    
+    send_metadata(ser, metadata, nonce, tag, debug=debug)
+ 
+    fw_size  = struct.unpack('<H', firmware_blob[2:4])[0]
+    chunk_size = struct.unpack('<H', firmware_blob[6:8])[0]
+    num_chunks = int(fw_size / chunk_size)
+    packet_index = struct.unpack('<H', firmware_blob[4:6])
     
     error_count = 0
-
-    send_metadata(ser, metadata, debug=debug)
-
-    for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
-        data = firmware[frame_start: frame_start + FRAME_SIZE]
-
-        # Get length of data.
-        length = len(data)
-        frame_fmt = '>H{}s'.format(length)
-
-        # Construct frame.
-        frame = struct.pack(frame_fmt, length, data)
+    
+    for i in range(0,num_chunks):
         
-        #If there are more than ten errors in a row, then restart the update.
-        if error_counter > 10:
-            print("Terminating, restarting update...")
-            return
-        
-        if debug:
-            print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
+        fw_start = PACKET_SIZE*packet_index +40
+        firmware = firmware_blob[fw_start:fw_start+1024]
+    
+        for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
+            data = firmware[frame_start: frame_start + FRAME_SIZE]
 
-        send_frame(ser, frame, debug=debug)
+            # Get length of data.
+            length = len(data)
+            frame_fmt = '<H{}s'.format(length)
+
+            # Construct frame.
+            frame = struct.pack(frame_fmt, length, data)
+
+            #If there are more than ten errors in a row, then restart the update.
+            if error_counter > 10:
+                print("Terminating, restarting update...")
+                return
+
+            if debug:
+                print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
+
+            send_frame(ser, frame, debug=debug)
 
     print("Done writing firmware.")
 
     # Send a zero length payload to tell the bootlader to finish writing its page.
-    ser.write(struct.pack('>H', 0x0000))
+    ser.write(struct.pack('<H', 0x0000))
 
     return ser
 
