@@ -244,7 +244,6 @@ int main(void) {
     switch (instruction) {
       case UPDATE:
         uart_write_str(UART1, "U");
-        uart_write(UART1, OK);
         load_firmware();
         break;
       case BOOT:
@@ -353,6 +352,9 @@ void load_firmware(void) {
     metadata = ((text_size & 0xFF) << 24) | ((index & 0xFF) << 16) | ((size & 0xFF) << 8) | (version & 0xFF);
     
     // Compare to old version and abort if older (note special case for version 0).
+    uart_write_str(UART2, "Starting Version Check");
+    nl(UART2);
+    
     uint16_t old_version = *fw_version_address;
     if (version != 0 && version < old_version) {
       uart_write(UART1, ERROR); // Reject the metadata.
@@ -362,6 +364,9 @@ void load_firmware(void) {
       // If debug firmware, don't change version
       version = old_version;
     }
+    
+    uart_write_str(UART2, "Version Check Done");
+    nl(UART2);
     
     if (index == -1) {
       // Get Release Message
