@@ -89,6 +89,7 @@ if __name__ == '__main__':
     with open('secret_build_output.txt', 'rb') as fp:
         secrets = fp.read()
     aes_key = secrets[0:16]
+    print(aes_key)
     rsa_key = RSA.import_key(secrets[16:])
     
     decrypted = ''
@@ -100,13 +101,14 @@ if __name__ == '__main__':
     while len(encrypted) > 0: 
         curChunk += 1
         print('Now on: Chunk', curChunk)
-        chunk = encrypted[0:1064]
+        chunk = encrypted[0:1320]
+        encrypted = encrypted[1320:]
         
         metadata = chunk[0:8]
-        chunk_length = struct.unpack("<hhhh", metadata)[2]
-        if chunk_length % 16 != 0:
+        chunk_length = struct.unpack("<hhhh", metadata)[3]
+        if chunk_length % 16 != 0: # account for padding
             chunk_length += 16 - (chunk_length % 16)
-        chunk = chunk[0:chunk_length + 40]
+        chunk = chunk[0:chunk_length + 296]
         print(f'> Metadata: {metadata}')
         print(f'> Chunk Length: {chunk_length}')
         
@@ -115,11 +117,12 @@ if __name__ == '__main__':
         
         
         nonce = chunk[8:24]
-        print(f'> Nonce: {nonce}')
+        print(f'> Nonce: {nonce.hex()}')
         tag = chunk[24:40]
-        print(f'> Tag: {tag}')
-        ciphertext = chunk[40:]
-#         print(f'> cipher: {ciphertext}')
+        print(f'> Tag: {tag.hex()}')
+        rsasig = chunk[40:296]
+        ciphertext = chunk[296:]
+        print(f'> cipher: {ciphertext}')
         print(f'> cipherlen: {len(ciphertext)}')
         
         out = aes_decrypt(nonce, metadata, ciphertext, tag, aes_key, curChunk)
@@ -138,13 +141,15 @@ if __name__ == '__main__':
     else: 
         log_result('fw_protect.py encrypts contents correctly', 1)
         print(f'\x1b[1m\x1b[31mDecrypted firmware binary does NOT match original binary\x1b[0m')
-    
-    print('')
-    print(f'\x1b[92m===================\x1b[0m')
-    print(f'\x1b[92mALL TESTS PASSED 🎉\x1b[0m')
-    print(f'\x1b[92m===================\x1b[0m')
+        print(f'\x1b[1m\x1b[31mTest 3 failed, exiting\x1b[0m')
+        os._exit(os.EX_OK) 
     
     # Test #4: Run fw_protect.py against the real firmware binary
 #     print('\n\x1b[46mTest 3: Running fw_protect.py against a production binary\x1b[0m')
 #     print('\x1b[96mRunning fw_protect.py...\x1b[0m')
 #     status = subprocess.call('python fw_protect.py --infile ../firmware/firmware/gcc/main.bin --outfile test_firmwareblob.blob --version 4 --message "test works"', shell=True)
+
+    print('')
+    print(f'\x1b[92m===================\x1b[0m')
+    print(f'\x1b[92mALL TESTS PASSED 🎉\x1b[0m')
+    print(f'\x1b[92m===================\x1b[0m')

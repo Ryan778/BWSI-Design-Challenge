@@ -215,6 +215,20 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
 //     return 32;
 // }
 
+void uart_write_char_array(char * array, int len) {
+  for (int i = 0; i < len; i++) {
+      char temp = array[i];
+      temp = temp >> 4;
+      temp += temp < 10 ? 0x30 : 0x37;
+      uart_write(UART2, temp);
+      
+      temp = array[i];
+      temp = temp & 0xF;
+      temp += temp < 10 ? 0x30 : 0x37;
+      uart_write(UART2, temp);
+    }
+}
+
 int get_data_size(float n, float m) {
   return ceil(n / m) * m;
 }
@@ -303,11 +317,11 @@ void load_firmware(void) {
   uint32_t size         =  0;
   uint32_t text_size    =  0;
   uint32_t fw_index     =  0;
-  uint32_t metadata     =  0;
+  char     metadata[8];
   unsigned char nonce[16];
   unsigned char tag[16];
   unsigned char RSA_Signature[256];
-  
+  uart_write_char_array(aes_key, 16);
   while (true) {
     // Get version.
     rcv      = uart_read(UART1, BLOCKING, &read);
@@ -350,7 +364,7 @@ void load_firmware(void) {
       nonce[i] = uart_read(UART1, BLOCKING, &read);
     }
     uart_write_str(UART2, "Received Nonce: ");
-    uart_write_hex(UART2, nonce);
+    uart_write_char_array(nonce, 16);
     nl(UART2);
     
     // Get tag.
@@ -358,7 +372,7 @@ void load_firmware(void) {
       tag[i] = uart_read(UART1, BLOCKING, &read);
     }
     uart_write_str(UART2, "Received Tag: ");
-    uart_write_hex(UART2, tag);
+    uart_write_char_array(tag, 16);
     nl(UART2);
     
     // Get RSA Signature.
@@ -370,8 +384,17 @@ void load_firmware(void) {
     nl(UART2);
     
     // Metadata
-    metadata = ((text_size & 0xFF) << 24) | ((index & 0xFF) << 16) | ((size & 0xFF) << 8) | (version & 0xFF);
+    metadata[0] = version & 0xFF;
+    metadata[1] = version >> 8;
+    metadata[2] = size & 0xFF;
+    metadata[3] = size >> 8;
+    metadata[4] = index & 0xFF;
+    metadata[5] = index >> 8;
+    metadata[6] = text_size & 0xFF;
+    metadata[7] = text_size >> 8;
     uart_write(UART1, OK); // Acknowledge the Metadata.
+    uart_write_char_array(metadata, 8);
+    nl(UART2);
     
     // Compare to old version and abort if older (note special case for version 0).
     uart_write_str(UART2, "Starting Version Check");
@@ -432,8 +455,8 @@ void load_firmware(void) {
       }
       
       // Write new firmware size and version to Flash
-      metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
-      program_flash(METADATA_BASE, (uint8_t*)(&metadata), 4);
+//       metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
+//       program_flash(METADATA_BASE, (uint8_t*)(&metadata), 4);
       
       // Read from temp_addr. Write to FW_BASE.
       int i = 0;
@@ -467,30 +490,20 @@ void load_firmware(void) {
       nl(UART2);
       
       // Verify Integrity and Decrypt
-//       uart_write_str(UART2, "Verifying Integrity and Decrypting");
-//       nl(UART2);
-//       uart_write_str(UART2, "AES KEY: ");
-//       uart_write_hex(UART2, aes_key);
-//       nl(UART2);
-//       uart_write_str(UART2, "Nonce: ");
-//       uart_write_hex(UART2, nonce);
-//       nl(UART2);
-//       uart_writez_str(UART2, "Cipher Text: ");
-//       uart_write_hex(UART2, data);
-//       nl(UART2);
-//       uart_write_str(UART2, "Cipher Text Length: ");
-//       uart_write_hex(UART2, data_index);
-//       nl(UART2);
-//       uart_write_str(UART2, "TAG: ");
-//       uart_write_hex(UART2, tag);
-//       nl(UART2);
+      uart_write_str(UART2, "Cipher Text: ");
+      uart_write_char_array(data, data_index);
+      nl(UART2);
+      uart_write_str(UART2, "DATA INDEX: ");
+      uart_write_hex(UART2, data_index);
+      nl(UART2);
+
       if (gcm_decrypt_and_verify(aes_key, nonce, data, data_index, metadata, 8, tag) == 0) {
         uart_write_str(UART2, "Tag does not match");
         nl(UART2);
         
-//         uart_writez_str(UART2, "Plain Text: ");
-//         uart_write_hex(UART2, data);
-//         nl(UART2);
+        uart_write_str(UART2, "Plain Text: ");
+        uart_write_char_array(data, data_index);
+        nl(UART2);
         
         uart_write(UART1, ERROR); // Reject the metadata.
         SysCtlReset();            // Reset device
