@@ -350,6 +350,7 @@ void load_firmware(void) {
     
     // Metadata
     metadata = ((text_size & 0xFF) << 24) | ((index & 0xFF) << 16) | ((size & 0xFF) << 8) | (version & 0xFF);
+    uart_write(UART1, OK); // Acknowledge the Metadata.
     
     // Compare to old version and abort if older (note special case for version 0).
     uart_write_str(UART2, "Starting Version Check");
