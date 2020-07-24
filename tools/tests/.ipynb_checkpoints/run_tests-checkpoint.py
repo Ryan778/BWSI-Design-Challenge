@@ -15,6 +15,7 @@ import struct
 
 FILE_DIR = pathlib.Path(__file__).parent.absolute()
 
+from Crypto.Util.Padding import pad, unpad
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 # from bl_build import *
@@ -35,11 +36,17 @@ def aes_decrypt(nonce_var, metadata, cipher_text, tag_var, key, chunk):
         cipher.update(metadata)
 #         cipher.verify(tag_var)
         plaintext = cipher.decrypt_and_verify(cipher_text, tag_var)
+#         print(type(plaintext))
+    #         result = unpad(plaintext, 16)
         return plaintext.decode('utf-8')
     except ValueError:
         print(f'\x1b[1m\x1b[31m[AES-D] ValueError when attempting to decrypt chunk {chunk}. \x1b[0m')
         log_result(f'Failed to decrypt and verify chunk {chunk}', 1)
         return ''
+    
+
+    
+    
         
 if __name__ == '__main__':
     print('\x1b[92mC.I.A. Test Script\x1b[0m')
@@ -101,7 +108,7 @@ if __name__ == '__main__':
             chunk_length += 16 - (chunk_length % 16)
         chunk = chunk[0:chunk_length + 40]
         print(f'> Metadata: {metadata}')
-        print(f'> Metadata: {chunk_length}')
+        print(f'> Chunk Length: {chunk_length}')
         
         encrypted = encrypted[(chunk_length + 40):]
         print(f'> Encrypted: {len(encrypted)}')
@@ -121,7 +128,21 @@ if __name__ == '__main__':
             print('> Successfully decrypted')
         else: 
             print('> Decryption failed')
+    with open('tests/testfirmware.bin', 'r') as fp: 
+        expected_bin = fp.read()
+    print('decrypted result:', decrypted)
+#     print('expected:', expected_bin)
+    if decrypted[:len(expected_bin)] == expected_bin: 
+        log_result('fw_protect.py encrypts contents correctly', 0)
+        print(f'\x1b[92mDecrypted firmware binary matches original binary\x1b[0m')
+    else: 
+        log_result('fw_protect.py encrypts contents correctly', 1)
+        print(f'\x1b[1m\x1b[31mDecrypted firmware binary does NOT match original binary\x1b[0m')
     
+    print('')
+    print(f'\x1b[92m===================\x1b[0m')
+    print(f'\x1b[92mALL TESTS PASSED 🎉\x1b[0m')
+    print(f'\x1b[92m===================\x1b[0m')
     
     # Test #4: Run fw_protect.py against the real firmware binary
 #     print('\n\x1b[46mTest 3: Running fw_protect.py against a production binary\x1b[0m')
