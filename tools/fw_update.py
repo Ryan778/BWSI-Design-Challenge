@@ -32,7 +32,7 @@ PACKET_SIZE = 1064
 error_counter = 0
 
 def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
-    version, size = struct.unpack_from('<HH', metadata)
+    version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
     print(f'Version: {version}\nSize: {size} bytes\n')
 
     # Handshake for update
@@ -97,7 +97,7 @@ def main(ser, infile, debug):
     num_chunks = int(fw_size / chunk_size) # maybe
     
     for i in range(num_chunks):
-        print(f"Currently in chunk{i}")
+        print(f"Currently in chunk {i}")
       
         metadata = firmware_blob[i * chunk_size : i * chunk_size + 8]
         nonce = firmware_blob[i * chunk_size + 8 : i * chunk_size + 24]

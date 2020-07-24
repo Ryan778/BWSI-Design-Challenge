@@ -89,6 +89,7 @@ if __name__ == '__main__':
     with open('secret_build_output.txt', 'rb') as fp:
         secrets = fp.read()
     aes_key = secrets[0:16]
+    print(aes_key)
     rsa_key = RSA.import_key(secrets[16:])
     
     decrypted = ''
@@ -121,7 +122,7 @@ if __name__ == '__main__':
         print(f'> Tag: {tag.hex()}')
         rsasig = chunk[40:296]
         ciphertext = chunk[296:]
-#         print(f'> cipher: {ciphertext}')
+        print(f'> cipher: {ciphertext}')
         print(f'> cipherlen: {len(ciphertext)}')
         
         out = aes_decrypt(nonce, metadata, ciphertext, tag, aes_key, curChunk)
