@@ -31,16 +31,16 @@ PACKET_SIZE = 1064
 
 error_counter = 0
 
-def send_metadata(ser, metadata, nonce, tag, debug=False):
+def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
     version, size = struct.unpack_from('<HH', metadata)
     print(f'Version: {version}\nSize: {size} bytes\n')
 
     # Handshake for update
-    ser.write(b'U')
+#     ser.write(b'U')
     
-    print('Waiting for bootloader to enter update mode...')
-    while ser.read(1).decode() != 'U':
-        pass
+#     print('Waiting for bootloader to enter update mode...')
+#     while ser.read(1).decode() != 'U':
+#         pass
 
     # Send the metadata to bootloader.
     if debug:
@@ -49,6 +49,7 @@ def send_metadata(ser, metadata, nonce, tag, debug=False):
     ser.write(metadata)
     ser.write(nonce)
     ser.write(tag)
+    ser.write(rsa_sign)
 
     # Wait for an OK from the bootloader.
     resp = ser.read()
@@ -81,34 +82,46 @@ def main(ser, infile, debug):
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
     with open(infile, 'rb') as fp:
         firmware_blob = fp.read()
-
-    metadata = firmware_blob[:8]
-    nonce = firmware_blob[8:24]
-    tag = firmware_blob[24:40]
     
-    send_metadata(ser, metadata, nonce, tag, debug=debug)
- 
-    fw_size  = struct.unpack('<H', firmware_blob[2:4])[0]
-    chunk_size = struct.unpack('<H', firmware_blob[6:8])[0]
-    num_chunks = int(fw_size / chunk_size)
-    packet_index = struct.unpack('<H', firmware_blob[4:6])
+    error_counter = 0
     
-    error_count = 0
+    ser.write(b'U')
     
-    for i in range(0,num_chunks):
+    print('Waiting for bootloader to enter update mode...')
+    while ser.read(1).decode() != 'U':
+        pass
+    print('Updating...')
+    
+    fw_size  = struct.unpack('<H', firmware_blob[2 : 4])[0]
+    chunk_size = struct.unpack('<H', firmware_blob[6 : 8])[0]
+    num_chunks = int(fw_size / chunk_size) # maybe
+    
+    for i in range(num_chunks):
+        print(f"Currently in chunk{i}")
+      
+        metadata = firmware_blob[i * chunk_size : i * chunk_size + 8]
+        nonce = firmware_blob[i * chunk_size + 8 : i * chunk_size + 24]
+        tag = firmware_blob[i * chunk_size + 24 : i * chunk_size + 40]
+        rsa_sign = firmware_blob[i * chunk_size + 40 : i * chunk_size + 296]
         
-        fw_start = PACKET_SIZE*packet_index +40
-        firmware = firmware_blob[fw_start:fw_start+1024]
-    
+        send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=debug)
+ 
+        fw_size  = struct.unpack('<H', firmware_blob[i * chunk_size + 2 : i * chunk_size + 4])[0]
+        chunk_size = struct.unpack('<H', firmware_blob[i * chunk_size + 6 : i * chunk_size + 8])[0]
+        packet_index = struct.unpack('<H', firmware_blob[i * chunk_size + 4 : i * chunk_size + 6])[0]
+        
+        fw_start = PACKET_SIZE * packet_index + 296
+        firmware = firmware_blob[fw_start : fw_start + chunk_size]
+  
         for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
             data = firmware[frame_start: frame_start + FRAME_SIZE]
 
             # Get length of data.
             length = len(data)
-            frame_fmt = '<H{}s'.format(length)
+            frame_fmt = '<{}s'.format(length)
 
             # Construct frame.
-            frame = struct.pack(frame_fmt, length, data)
+            frame = struct.pack(frame_fmt, data)
 
             #If there are more than ten errors in a row, then restart the update.
             if error_counter > 10:
