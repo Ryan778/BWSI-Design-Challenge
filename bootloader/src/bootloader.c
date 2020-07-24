@@ -260,17 +260,29 @@ int main(void) {
  * Load initial firmware into flash
  */
 void load_initial_firmware(void) {
-  int  size = (int)&_binary_firmware_bin_size;
+
+  if (*((uint32_t*)(METADATA_BASE+512)) != 0){
+    /*
+     * Default Flash startup state in QEMU is all zeros since it is
+     * secretly a RAM region for emulation purposes. Only load initial
+     * firmware when metadata page is all zeros. Do this by checking
+     * 4 bytes at the half-way point, since the metadata page is filled
+     * with 0xFF after an erase in this function (program_flash()).
+     */
+    return;
+  }
+
+  int size = (int)&_binary_firmware_bin_size;
   int *data = (int *)&_binary_firmware_bin_start;
-  
-  uint16_t version  = 2;
+    
+  uint16_t version = 2;
   uint32_t metadata = (((uint16_t) size & 0xFFFF) << 16) | (version & 0xFFFF);
   program_flash(METADATA_BASE, (uint8_t*)(&metadata), 4);
   fw_release_message_address = (uint8_t *) "This is the initial release message.";
-  
+    
   int i = 0;
-  for (; i < size / FLASH_PAGESIZE; i++) {
-    program_flash(FW_BASE + (i * FLASH_PAGESIZE), ((unsigned char *) data) + (i * FLASH_PAGESIZE), FLASH_PAGESIZE);
+  for (; i < size / FLASH_PAGESIZE; i++){
+       program_flash(FW_BASE + (i * FLASH_PAGESIZE), ((unsigned char *) data) + (i * FLASH_PAGESIZE), FLASH_PAGESIZE);
   }
   program_flash(FW_BASE + (i * FLASH_PAGESIZE), ((unsigned char *) data) + (i * FLASH_PAGESIZE), size % FLASH_PAGESIZE);
 }
@@ -294,6 +306,7 @@ void load_firmware(void) {
   uint32_t metadata     =  0;
   unsigned char nonce[16];
   unsigned char tag[16];
+  unsigned char RSA_Signature[256];
   
   while (true) {
     // Get version.
@@ -346,6 +359,14 @@ void load_firmware(void) {
     }
     uart_write_str(UART2, "Received Tag: ");
     uart_write_hex(UART2, tag);
+    nl(UART2);
+    
+    // Get RSA Signature.
+    for (int i = 0; i < 256; i++) {
+      RSA_Signature[i] = uart_read(UART1, BLOCKING, &read);
+    }
+    uart_write_str(UART2, "Received RSA Signature: ");
+    uart_write_hex(UART2, RSA_Signature);
     nl(UART2);
     
     // Metadata
@@ -432,6 +453,9 @@ void load_firmware(void) {
       
       return;
     } else if (index == pindex + 1) {
+      uart_write_str(UART2, "Reading frame");
+      nl(UART2);
+      
       for (int i = 0; i < get_data_size(text_size, 16) / frame_length; i++) {
         for (int j = 0; j < frame_length; j++) {
           data[data_index++] = uart_read(UART1, BLOCKING, &read);
@@ -439,14 +463,46 @@ void load_firmware(void) {
         uart_write(UART1, OK); // Acknowledge the frame.
       }
       
+      uart_write_str(UART2, "Done reading frame");
+      nl(UART2);
+      
       // Verify Integrity and Decrypt
+//       uart_write_str(UART2, "Verifying Integrity and Decrypting");
+//       nl(UART2);
+//       uart_write_str(UART2, "AES KEY: ");
+//       uart_write_hex(UART2, aes_key);
+//       nl(UART2);
+//       uart_write_str(UART2, "Nonce: ");
+//       uart_write_hex(UART2, nonce);
+//       nl(UART2);
+//       uart_writez_str(UART2, "Cipher Text: ");
+//       uart_write_hex(UART2, data);
+//       nl(UART2);
+//       uart_write_str(UART2, "Cipher Text Length: ");
+//       uart_write_hex(UART2, data_index);
+//       nl(UART2);
+//       uart_write_str(UART2, "TAG: ");
+//       uart_write_hex(UART2, tag);
+//       nl(UART2);
       if (gcm_decrypt_and_verify(aes_key, nonce, data, data_index, metadata, 8, tag) == 0) {
+        uart_write_str(UART2, "Tag does not match");
+        nl(UART2);
+        
+//         uart_writez_str(UART2, "Plain Text: ");
+//         uart_write_hex(UART2, data);
+//         nl(UART2);
+        
         uart_write(UART1, ERROR); // Reject the metadata.
         SysCtlReset();            // Reset device
         return;
       }
+      uart_write_str(UART2, "Finished Verifying Integrity and Decrypting");
+      nl(UART2);
       
       // Unpad
+      uart_write_str(UART2, "Unpadding");
+      nl(UART2);
+      
       if (text_size != 1024) {
         int pad = get_data_size(text_size, 16) - text_size;
         data_index -= pad;
@@ -455,12 +511,23 @@ void load_firmware(void) {
         }
       }
       
+      uart_write_str(UART2, "Finished Unpadding");
+      nl(UART2);
+      
       // Try to write flash and check for error
+      uart_write_str(UART2, "Writing to temp addr");
+      nl(UART2);
+      
       if (program_flash(temp_addr + page_addr * FLASH_PAGESIZE, data, data_index)) {
+        uart_write_str(UART2, "ERROR! While Writing to temp addr");
+        nl(UART2);
         uart_write(UART1, ERROR); // Reject the firmware
         SysCtlReset();            // Reset device
         return;
       }
+      
+      uart_write_str(UART2, "Finished writing to temp addr");
+      nl(UART2);
       
       // Write debugging messages to UART2.
       uart_write_str(UART2, "Page successfully programmed\nAddress: ");
