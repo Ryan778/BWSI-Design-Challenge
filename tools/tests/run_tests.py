@@ -116,9 +116,9 @@ if __name__ == '__main__':
         
         
         nonce = chunk[8:24]
-        print(f'> Nonce: {nonce}')
+        print(f'> Nonce: {nonce.hex()}')
         tag = chunk[24:40]
-        print(f'> Tag: {tag}')
+        print(f'> Tag: {tag.hex()}')
         rsasig = chunk[40:296]
         ciphertext = chunk[296:]
 #         print(f'> cipher: {ciphertext}')
@@ -140,6 +140,7 @@ if __name__ == '__main__':
     else: 
         log_result('fw_protect.py encrypts contents correctly', 1)
         print(f'\x1b[1m\x1b[31mDecrypted firmware binary does NOT match original binary\x1b[0m')
+        print(f'\x1b[1m\x1b[31mTest 3 failed, exiting\x1b[0m')
         os._exit(os.EX_OK) 
     
     # Test #4: Run fw_protect.py against the real firmware binary
