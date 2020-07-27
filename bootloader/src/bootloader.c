@@ -37,7 +37,6 @@ long program_flash(uint32_t, unsigned char*, unsigned int);
 #define ERROR  ((unsigned char)0x01)
 #define UPDATE ((unsigned char)'U')
 #define BOOT   ((unsigned char)'B')
-#define METADATA   (0x0400061000000004)
 
 #define KEY_LEN 16  // Length of AES key (16 = AES-128)
 #define IV_LEN  16  // Length of IV (16 is secure)
@@ -296,6 +295,8 @@ void load_firmware(void) {
   char aes_key[16] = AES_KEY;
   uart_write_char_array(aes_key, 16);
   while (true) {
+    uart_write_str(UART2, "New Page");
+    nl(UART2);
     // Get version.
     rcv      = uart_read(UART1, BLOCKING, &read);
     version  = (uint32_t)rcv;
@@ -319,6 +320,7 @@ void load_firmware(void) {
     index  = (uint32_t)rcv;
     rcv    = uart_read(UART1, BLOCKING, &read);
     index |= (uint32_t)rcv << 8;
+    if(index == 0xFFFF) index = -1;
     uart_write_str(UART2, "Received Index: ");
     uart_write_hex(UART2, index);
     nl(UART2);
@@ -455,8 +457,8 @@ void load_firmware(void) {
       nl(UART2);
       
       for (int i = 0; i < get_data_size(text_size, 16) / frame_length; i++) {
-        uart_write_hex(UART2, i);  
-        nl(UART2);
+//         uart_write_hex(UART2, i);  
+//         nl(UART2);
         for (int j = 0; j < frame_length; j++) {
           data[data_index++] = uart_read(UART1, BLOCKING, &read);
         }
@@ -478,7 +480,7 @@ void load_firmware(void) {
       uart_write_char_array(aes_key, 16);
       nl(UART2); 
 
-      if (gcm_decrypt_and_verify(aes_key, nonce, data, data_index, metadata, 0, tag) == 0) {
+      if (gcm_decrypt_and_verify(aes_key, nonce, data, data_index, metadata, 8, tag) == 0) {
         uart_write_str(UART2, "Tag does not match");
         nl(UART2);
         
@@ -539,6 +541,8 @@ void load_firmware(void) {
       memset(data, '\0', FLASH_PAGESIZE);
     } else {
       uart_write(UART1, ERROR); // Reject the metadata.
+      uart_write_str(UART2, "Bad Chunk Index");
+      nl(UART2);
       SysCtlReset();            // Reset device
       return;
     }

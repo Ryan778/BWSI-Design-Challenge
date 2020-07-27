@@ -54,8 +54,11 @@ def protect_firmware(infile, outfile, version, message):
         chunks.append(firmware[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE])
 
     if(CHUNK_SIZE * (chunks_needed) - len(firmware) != 0):
+        print("Extra")
+        print(firmware[CHUNK_SIZE * (chunks_needed):])
         chunks.append(firmware[CHUNK_SIZE * (chunks_needed):])
         
+    
     for chunk in chunks:
         print(len(chunk))
 
@@ -77,7 +80,7 @@ def protect_firmware(infile, outfile, version, message):
         
         #Set up metadata
         metadata = struct.pack('<hhhh', version, len(firmware), i,  len(chunk))
-#         aes_cipher.update(metadata)
+        aes_cipher.update(metadata)
         
         #padded text
         processed_plain = b''
@@ -94,7 +97,8 @@ def protect_firmware(infile, outfile, version, message):
         signature = pkcs1_15.new(rsa_key).sign(h)
 
         #THings for testing :D
-    #     print(metadata)
+        print("metadata:")
+        print(metadata)
     #     print(ciphertext)
 #         print(len(ciphertext))
 #         print(tag)

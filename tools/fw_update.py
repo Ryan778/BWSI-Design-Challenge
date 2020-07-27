@@ -33,7 +33,7 @@ error_counter = 0
 
 def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
     version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
-    print(f'Version: {version}\nSize: {size} bytes\n')
+    print(f'Version: {version}\nSize: {size} bytes\nChunk: {chunk_size} bytes\nIndex: {chunk_index}\n')
 
     # Send the metadata to bootloader.
     if debug:
@@ -58,8 +58,6 @@ def send_frame(ser, frame, debug=False):
     if debug:
         print(frame)
 
-        
-    time.sleep(0.1)    
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
     
@@ -87,7 +85,6 @@ def main(ser, infile, debug):
     
     ser.write(b'U')
     
-    time.sleep(0.1)
     
     print('Waiting for bootloader to enter update mode...')
     resp = ser.read(1)
@@ -104,12 +101,15 @@ def main(ser, infile, debug):
     release = False;
     
     while(not release):
+        print(cur_loc)
         metadata = firmware_blob[cur_loc:cur_loc + 8]
         nonce = firmware_blob[cur_loc + 8:cur_loc + 24]
         tag = firmware_blob[cur_loc + 24:cur_loc + 40]
         rsa_sign = firmware_blob[cur_loc + 40:cur_loc + 296]
         
         version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
+        
+        print(f'Chunk Index: {chunk_index}')
         
         if(chunk_index == -1):
             release = True;
@@ -146,6 +146,8 @@ def main(ser, infile, debug):
                 print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
 
             send_frame(ser, frame, debug=debug)
+            
+        cur_loc += (actual_size + 296)
             
         
     
