@@ -33,7 +33,7 @@ def log_result(msg, res=0):
 def aes_decrypt(nonce_var, metadata, cipher_text, tag_var, key, chunk):
     try:
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce_var)
-        cipher.update(metadata)
+#         cipher.update(metadata)
 #         cipher.verify(tag_var)
         plaintext = cipher.decrypt_and_verify(cipher_text, tag_var)
 #         print(type(plaintext))
@@ -89,7 +89,7 @@ if __name__ == '__main__':
     with open('secret_build_output.txt', 'rb') as fp:
         secrets = fp.read()
     aes_key = secrets[0:16]
-    print(aes_key)
+    print(aes_key.hex())
     rsa_key = RSA.import_key(secrets[16:])
     
     decrypted = ''
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         print(f'> Metadata: {metadata}')
         print(f'> Chunk Length: {chunk_length}')
         
-        encrypted = encrypted[(chunk_length + 40):]
+        encrypted = encrypted[(chunk_length + 296):]
         print(f'> Encrypted: {len(encrypted)}')
         
         
@@ -123,6 +123,7 @@ if __name__ == '__main__':
         rsasig = chunk[40:296]
         ciphertext = chunk[296:]
         print(f'> cipher: {ciphertext}')
+        print(f'> cipher hex: {ciphertext.hex()}')
         print(f'> cipherlen: {len(ciphertext)}')
         
         out = aes_decrypt(nonce, metadata, ciphertext, tag, aes_key, curChunk)
