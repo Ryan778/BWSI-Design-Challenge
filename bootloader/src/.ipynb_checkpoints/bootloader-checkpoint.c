@@ -351,15 +351,6 @@ void load_firmware(void) {
     uart_write_str(UART2, "rsa_e: ");
     uart_write_char_array(rsa_e, 3);
     nl(UART2);
-    
-  char     nonce[16];
-  char     tag[16];
-  char     RSA_Signature[256];
-  char     aes_key[16] = AES_KEY;
-  
-  uart_write_str(UART2, "AES Key: ");
-  uart_write_char_array(aes_key, 16);
-  nl(UART2);
   
 
   while (true) {

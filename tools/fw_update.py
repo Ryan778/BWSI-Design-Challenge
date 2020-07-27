@@ -67,12 +67,7 @@ def send_frame(ser, frame, debug=False):
 
     if debug:
         print(frame)
-<<<<<<< HEAD
         
-    time.sleep(0.1)    
-=======
-
->>>>>>> c550450c004dd582a1deb232642d88f436958d81
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
     print(f'resp{resp}')
@@ -98,12 +93,7 @@ def main(ser, infile, debug):
     
     #Handshake with bootloader, wait for bootloader to respond with a 'U'
     ser.write(b'U')
-<<<<<<< HEAD
-    time.sleep(0.1)
-=======
-    
-    
->>>>>>> c550450c004dd582a1deb232642d88f436958d81
+
     print('Waiting for bootloader to enter update mode...')
     resp = ser.read(1)
     print(resp)
@@ -129,13 +119,12 @@ def main(ser, infile, debug):
         tag = firmware_blob[cur_loc + 24:cur_loc + 40]
         rsa_sign = firmware_blob[cur_loc + 40:cur_loc + 296]
         version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
-        
-<<<<<<< HEAD
+
         #Reached the release message
-=======
+
         print(f'Chunk Index: {chunk_index}')
         
->>>>>>> c550450c004dd582a1deb232642d88f436958d81
+
         if(chunk_index == -1):
             release = True;
         
@@ -177,17 +166,14 @@ def main(ser, infile, debug):
             #Send the frame to bootloader
             send_frame(ser, frame, debug=debug)
             
-<<<<<<< HEAD
+        cur_loc += (actual_size + 296)
+        
     print("Done writing firmware.")
     return ser
 
-
-=======
-        cur_loc += (actual_size + 296)
+        
             
         
-    
->>>>>>> c550450c004dd582a1deb232642d88f436958d81
 #     for i in range(0, f):
 #         print(f"Currently in chunk {i}")
       
