@@ -65,10 +65,15 @@ def protect_firmware(infile, outfile, version, message):
 
     #Add the remaining chunk from the firmware (that is not 1K bytes)
     if(CHUNK_SIZE * (chunks_needed) - len(firmware) != 0):
+        print("Extra")
+        print(firmware[CHUNK_SIZE * (chunks_needed):])
         chunks.append(firmware[CHUNK_SIZE * (chunks_needed):])
         
-#    for chunk in chunks:
-#        print(len(chunk))
+    
+    for chunk in chunks:
+        print(len(chunk))
+
+
 
 #   key = get_random_bytes(16) #For Testing Purposes only
 
@@ -83,7 +88,7 @@ def protect_firmware(infile, outfile, version, message):
         
         #Set up metadata: version, size, chunk index, chunk size
         metadata = struct.pack('<hhhh', version, len(firmware), i,  len(chunk))
-#         aes_cipher.update(metadata)
+        aes_cipher.update(metadata)
         
         #Pad text if not 1K chunk
         processed_plain = b''
@@ -98,6 +103,7 @@ def protect_firmware(infile, outfile, version, message):
         #Get RSA Signature
         h = SHA256.new(ciphertext)
         signature = pkcs1_15.new(rsa_key).sign(h)
+
 
 #        Things for testing :D
 #         print(metadata)

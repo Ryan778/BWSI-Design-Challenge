@@ -58,7 +58,7 @@ def generate_keys():
         print(len(rsakey.export_key(format='DER')))
 #         file.write(rsakey.publickey().export_key())
     
-    st = make_bootloader(aeskey, rsakey.n.to_bytes(256, 'little'), rsakey.e.to_bytes(3, 'little'))
+    st = make_bootloader(aeskey, rsakey.n.to_bytes(256, 'big'), rsakey.e.to_bytes(3, 'big'))
     if st != 0: # Throw error if build failed
         raise SystemExit(f'Build Failed - Make returned code {st}')
 
@@ -89,6 +89,7 @@ def make_bootloader(AES_KEY, RSA_N, RSA_E):
     os.chdir(bootloader)
 
     subprocess.call('make clean', shell=True)
+    
     status = subprocess.call(f'make AES_KEY={to_c_array(AES_KEY)} RSA_N={to_c_array(RSA_N)} RSA_E={to_c_array(RSA_E)}', shell=True)
 
     # Return status of make.

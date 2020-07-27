@@ -18,6 +18,8 @@ FILE_DIR = pathlib.Path(__file__).parent.absolute()
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA256
 # from bl_build import *
 # from fw_protect import *
 
@@ -33,7 +35,7 @@ def log_result(msg, res=0):
 def aes_decrypt(nonce_var, metadata, cipher_text, tag_var, key, chunk):
     try:
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce_var)
-#         cipher.update(metadata)
+        cipher.update(metadata)
 #         cipher.verify(tag_var)
         plaintext = cipher.decrypt_and_verify(cipher_text, tag_var)
 #         print(type(plaintext))
@@ -44,9 +46,16 @@ def aes_decrypt(nonce_var, metadata, cipher_text, tag_var, key, chunk):
         log_result(f'Failed to decrypt and verify chunk {chunk}', 1)
         return ''
     
-
-    
-    
+def verify_rsa(ciphertext, key, signature):
+    try:
+        h = SHA256.new(ciphertext)
+        print(f'hash{h.hexdigest()}')
+        pkcs1_15.new(key).verify(h, signature)
+        print("yay")
+        return 1
+    except ValueError:
+        print("Fail. Wrong Value")
+        return 0 
         
 if __name__ == '__main__':
     print('\x1b[92mC.I.A. Test Script\x1b[0m')
@@ -117,12 +126,16 @@ if __name__ == '__main__':
         tag = chunk[24:40]
         print(f'> Tag: {tag.hex()}')
         rsasig = chunk[40:296]
+        print(f'> rsa hex: {rsasig.hex()}')
+        print(rsa_key.n.to_bytes(256, 'big').hex())
+        print(rsa_key.e.to_bytes(3, 'big').hex())
         ciphertext = chunk[296:]
 #         print(f'> cipher: {ciphertext}')
         print(f'> cipher hex: {ciphertext.hex()}')
         print(f'> cipherlen: {len(ciphertext)}')
         
         out = aes_decrypt(nonce, metadata, ciphertext, tag, aes_key, curChunk)
+        verify_rsa(ciphertext, rsa_key, rsasig)
         if out != '':
             decrypted += out
             print('> Successfully decrypted')
