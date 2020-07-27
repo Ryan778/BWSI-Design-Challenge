@@ -2,20 +2,25 @@
 """
 Firmware Updater Tool
 
-A frame consists of two sections:
-1. Two bytes for the length of the data section
-2. A data section of length defined in the length section
+1. Initializes update mode by sending and receiving a 'U'. 
+   Sends the metadata to the bootloader.
 
-[ 0x02 ]  [ variable ]
---------------------
-| Length | Data... |
---------------------
+2. Takes each packet from the firmware blob, splits it into 16 byte frames, and 
+   sends each frame to the bootloader, and waits for an "OK" message after each 
+   frame.
+    - The OK message is just a zero
+
+A frame consists of two sections:
+    - Two bytes for the length of the data section
+    - A data section of length defined in the length section
+
+            [ 0x02 ]  [ variable ]
+            ----------------------
+            | Length |  Data...  |
+            ----------------------
 
 In our case, the data is from one line of the Intel Hex formated .hex file
 
-We write a frame to the bootloader, then wait for it to respond with an
-OK message so we can write the next frame. The OK message in this case is
-just a zero
 """
 
 import argparse
@@ -24,6 +29,7 @@ import time
 
 from serial import Serial
 
+#initializing constants
 RESP_OK = b'\x00'
 RESP_ERR = b'\x01'
 FRAME_SIZE = 16
@@ -31,14 +37,16 @@ PACKET_SIZE = 1024
 
 error_counter = 0
 
+
+#Send the metadata to the bootloader and wait for an "OK" message before proceeding
 def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
     version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
     print(f'Version: {version}\nSize: {size} bytes\n')
 
-    # Send the metadata to bootloader.
     if debug:
         print(metadata)
-
+        
+    # Send the metadata to bootloader.
     ser.write(metadata)
     ser.write(nonce)
     ser.write(tag)
@@ -52,18 +60,17 @@ def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
 
+        
+#Send each frame to the bootloader
 def send_frame(ser, frame, debug=False):
-    ser.write(frame)  # Write the frame...
+    ser.write(frame)  # Write the frame
 
     if debug:
         print(frame)
-
         
     time.sleep(0.1)    
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
-    
-    
     print(f'resp{resp}')
 
     if resp != RESP_OK:
@@ -85,50 +92,57 @@ def main(ser, infile, debug):
     
     error_counter = 0
     
+    #Handshake with bootloader, wait for bootloader to respond with a 'U'
     ser.write(b'U')
-    
     time.sleep(0.1)
-    
     print('Waiting for bootloader to enter update mode...')
     resp = ser.read(1)
     print(resp)
+    
+    #Wait until 'U' is received
     while resp != b'U':
         resp = ser.read(1)
         print(resp)
         print('Waiting...')
     print('Updating...')
     
+    #Iterate through all packets in the firmware blob, and split into 16 byte frames
     fw_size  = struct.unpack('<h', firmware_blob[2 : 4])[0]
-    num_chunks = int(fw_size / PACKET_SIZE) # maybe
+    num_chunks = int(fw_size / PACKET_SIZE) 
     cur_loc = 0
     release = False;
     
+    #Iterate through all chunks until release message
     while(not release):
         metadata = firmware_blob[cur_loc:cur_loc + 8]
         nonce = firmware_blob[cur_loc + 8:cur_loc + 24]
         tag = firmware_blob[cur_loc + 24:cur_loc + 40]
         rsa_sign = firmware_blob[cur_loc + 40:cur_loc + 296]
-        
         version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
         
+        #Reached the release message
         if(chunk_index == -1):
             release = True;
         
+        #Make sure each chunk size is a multiple of 16
         actual_size = chunk_size
-        
         if(chunk_size % 16 != 0):
             actual_size += (16 - (chunk_size % 16))
         
+        #Each chunk to be split into frames
         firmware = firmware_blob[cur_loc + 296: cur_loc + actual_size + 296]
         print(len(firmware))
         print(firmware)
         
+        #Send metadata to bootloader with nonce, tag, and rsa signature
         send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=debug)
         
         print(range(0, len(firmware), FRAME_SIZE))
+        
+        #Iterate through each 16 byte frame in the chunk
         for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
             print(f'Frame{idx}')
-            data = firmware[frame_start: frame_start + FRAME_SIZE]
+            data = firmware[frame_start: frame_start + FRAME_SIZE] #frame
 
             # Get length of data.
             length = len(data)
@@ -144,11 +158,14 @@ def main(ser, infile, debug):
 
             if debug:
                 print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
-
+            
+            #Send the frame to bootloader
             send_frame(ser, frame, debug=debug)
             
-        
-    
+    print("Done writing firmware.")
+    return ser
+
+
 #     for i in range(0, f):
 #         print(f"Currently in chunk {i}")
       
@@ -186,12 +203,10 @@ def main(ser, infile, debug):
 
 #             send_frame(ser, frame, debug=debug)
 
-    print("Done writing firmware.")
+    
 
     # Send a zero length payload to tell the bootlader to finish writing its page.
 #     ser.write(struct.pack('<H', 0x0000))
-
-    return ser
 
 
 if __name__ == '__main__':
