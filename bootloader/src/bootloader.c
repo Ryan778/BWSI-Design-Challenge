@@ -119,14 +119,7 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
     br_aes_ct_ctr_keys bc;
     br_gcm_context gc;
     
-    uart_write_str(UART2, "KEY1");
-    uart_write_char_array(key, 16);
-    nl(UART2);
     br_aes_ct_ctr_init(&bc, key, KEY_LEN);
-    
-    uart_write_str(UART2, "KEY2");
-    uart_write_char_array(key, 16);
-    nl(UART2);
     
     br_gcm_init(&gc, &bc.vtable, br_ghash_ctmul32);
     
@@ -151,18 +144,60 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
     
     br_gcm_flip(&gc);                        
     br_gcm_run(&gc, 0, ct, ct_len); 
-//     br_gcm_get_tag(&gc, out);
-//     uart_write_str(UART2, "TAG Generated");
-//     uart_write_char_array(out, 16);
-//     nl(UART2);
-    uart_write_str(UART2, "TAG Passed");
-    uart_write_char_array(tag, 16);
-    nl(UART2);
     if (br_gcm_check_tag(&gc, tag)) {
         return 1;
     }
     return 0; 
 }
+
+int rsa_verify(br_rsa_public_key key, char* signature, unsigned int sig_len, char * cipher, unsigned int cipher_len){
+    
+    uart_write_str(UART2, "RSA Verification");
+    nl(UART2);
+    
+//     uart_write_str(UART2, "N");
+//     uart_write_char_array(RSA_N, 256);
+//     nl(UART2);
+    
+//     uart_write_str(UART2, "E");
+//     uart_write_char_array(RSA_E, 3);
+//     nl(UART2);
+    
+    br_rsa_pkcs1_vrfy fvrfy;
+    uart_write_str(UART2, "1");
+    nl(UART2);
+    
+    unsigned char hash[32];
+    sha_hash(cipher, cipher_len, hash);
+    uart_write_str(UART2, "2");
+    nl(UART2);
+    
+    uart_write_str(UART2, "HASH");
+    uart_write_char_array(hash, 32);
+    nl(UART2);
+    
+    unsigned char output_hash_buffer[32];
+    if(!fvrfy(signature, sizeof signature, BR_HASH_OID_SHA256, sizeof output_hash_buffer, &key, output_hash_buffer)){
+        return 0;
+    }
+    uart_write_str(UART2, "3");
+    nl(UART2);
+    
+    uart_write_str(UART2, "OUTPUT HASH");
+    uart_write_char_array(output_hash_buffer, 32);
+    nl(UART2);
+    
+    if(strncmp(hash, output_hash_buffer, 32) == 0){
+        return 1;
+    }
+    else{
+        return 0;
+    }
+        
+   
+}
+
+
 
 /*
  * SHA-256 Hash
@@ -174,15 +209,15 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
  * Returns:
  * Length of hash
  */
-// int sha_hash(unsigned char* data, unsigned int len, unsigned char* out) {
-//     br_sha256_context csha;
+int sha_hash(unsigned char* data, unsigned int len, unsigned char* out) {
+    br_sha256_context csha;
     
-//     br_sha256_init(&csha);
-//     br_sha256_update(&csha, data, len);
-//     br_sha256_out(&csha, out);
+    br_sha256_init(&csha);
+    br_sha256_update(&csha, data, len);
+    br_sha256_out(&csha, out);
     
-//     return 32;
-// }
+    return 32;
+}
 
 void uart_write_char_array(char * array, int len) {
   for (int i = 0; i < len; i++) {
@@ -292,8 +327,30 @@ void load_firmware(void) {
   char nonce[16];
   char tag[16];
   char RSA_Signature[256];
+    
+//     Declare keys
   char aes_key[16] = AES_KEY;
+  unsigned char rsa_n[256] = RSA_N;
+  unsigned char rsa_e[3] = RSA_E;
+    
+  br_rsa_public_key rsa_pk = {
+    (void *)rsa_n, sizeof rsa_n,
+    (void *)rsa_e, sizeof rsa_e
+    };
+    
+//     Some printouts
+    uart_write_str(UART2, "aes_key: ");
   uart_write_char_array(aes_key, 16);
+    nl(UART2);
+
+    uart_write_str(UART2, "rsa_n: ");
+    uart_write_char_array(rsa_n, 256);
+    nl(UART2);
+    
+    uart_write_str(UART2, "rsa_e: ");
+    uart_write_char_array(rsa_e, 3);
+    nl(UART2);
+    
   while (true) {
     uart_write_str(UART2, "New Page");
     nl(UART2);
@@ -356,7 +413,7 @@ void load_firmware(void) {
       RSA_Signature[i] = uart_read(UART1, BLOCKING, &read);
     }
     uart_write_str(UART2, "Received RSA Signature: ");
-    uart_write_hex(UART2, RSA_Signature);
+    uart_write_char_array(RSA_Signature, 256);
     nl(UART2);
 
     // Metadata
@@ -405,6 +462,8 @@ void load_firmware(void) {
         SysCtlReset();            // Reset device
         return;
       }
+        
+      
       
       // Unpad
       if (text_size != 1024) {
@@ -452,7 +511,9 @@ void load_firmware(void) {
       }
       
       return;
-    } else if (index == pindex + 1) {
+    } 
+      
+      else if (index == pindex + 1) {
       uart_write_str(UART2, "Reading frame");
       nl(UART2);
       
@@ -469,16 +530,19 @@ void load_firmware(void) {
       nl(UART2);
       
       // Verify Integrity and Decrypt
-      uart_write_str(UART2, "Cipher Text: ");
-      uart_write_char_array(data, data_index);
-      nl(UART2);
-      uart_write_str(UART2, "DATA INDEX: ");
-      uart_write_hex(UART2, data_index);
-      nl(UART2);
-        
-    uart_write_str(UART2, "Key: ");
+      uart_write_str(UART2, "Key: ");
       uart_write_char_array(aes_key, 16);
       nl(UART2); 
+          
+//     Verify RSA
+          
+    if(rsa_verify(rsa_pk, RSA_Signature, 256, data, data_index) == 0){
+        uart_write_str(UART2, "Signature does not match");
+        nl(UART2);
+      }
+          
+        uart_write_str(UART2, "Signature match");
+        nl(UART2);
 
       if (gcm_decrypt_and_verify(aes_key, nonce, data, data_index, metadata, 8, tag) == 0) {
         uart_write_str(UART2, "Tag does not match");
@@ -492,6 +556,11 @@ void load_firmware(void) {
         SysCtlReset();            // Reset device
         return;
       }
+          
+        uart_write_str(UART2, "Tag match");
+        nl(UART2);
+          
+      
       uart_write_str(UART2, "Finished Verifying Integrity and Decrypting");
       nl(UART2);
       
