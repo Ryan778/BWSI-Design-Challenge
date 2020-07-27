@@ -1,5 +1,3 @@
-
-
 // Hardware Imports
 #include "inc/hw_memmap.h" // Peripheral Base Addresses
 #include "inc/lm3s6965.h"  // Peripheral Bit Masks and Registers
@@ -49,9 +47,6 @@ extern int _binary_firmware_bin_size;
 uint16_t *fw_version_address = (uint16_t *) (METADATA_BASE);
 uint16_t *fw_size_address    = (uint16_t *) (METADATA_BASE + 2);
 uint8_t  *fw_release_message_address;
-
-const unsigned char meta_test[] =  {
-0x04, 0x00, 0x06, 0x10, 0x00, 0x00, 0x00, 0x04};
 
 // Firmware Buffer
 unsigned char data[FLASH_PAGESIZE];
@@ -119,12 +114,12 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
     br_aes_ct_ctr_keys bc;
     br_gcm_context gc;
     
-    uart_write_str(UART2, "KEY1");
+    uart_write_str(UART2, "KEY1: ");
     uart_write_char_array(key, 16);
     nl(UART2);
     br_aes_ct_ctr_init(&bc, key, KEY_LEN);
     
-    uart_write_str(UART2, "KEY2");
+    uart_write_str(UART2, "KEY2: ");
     uart_write_char_array(key, 16);
     nl(UART2);
     
@@ -133,19 +128,19 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
     br_gcm_reset(&gc, iv, IV_LEN);         
     br_gcm_aad_inject(&gc, aad, aad_len);
     
-    uart_write_str(UART2, "AAD");
+    uart_write_str(UART2, "AAD: ");
     uart_write_char_array(aad, 16);
     nl(UART2);
     
-    uart_write_str(UART2, "KEY");
+    uart_write_str(UART2, "KEY: ");
     uart_write_char_array(key, 16);
     nl(UART2);
     
-    uart_write_str(UART2, "IV");
+    uart_write_str(UART2, "IV: ");
     uart_write_char_array(iv, 16);
     nl(UART2);
     
-    uart_write_str(UART2, "cipher");
+    uart_write_str(UART2, "Cipher: ");
     uart_write_char_array(ct, 1024);
     nl(UART2);
     
@@ -155,7 +150,7 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
 //     uart_write_str(UART2, "TAG Generated");
 //     uart_write_char_array(out, 16);
 //     nl(UART2);
-    uart_write_str(UART2, "TAG Passed");
+    uart_write_str(UART2, "TAG Passed: ");
     uart_write_char_array(tag, 16);
     nl(UART2);
     if (br_gcm_check_tag(&gc, tag)) {
@@ -280,23 +275,28 @@ void load_firmware(void) {
   int      index        =  0;
   int      pindex       = -1;
   int      frame_length =  16;
+  short    version      =  0;
+  short    size         =  0;
+  short    text_size    =  0;
+  short    fw_index     =  0;
   uint32_t rcv          =  0;
   uint32_t data_index   =  0;
   uint32_t page_addr    =  FW_BASE;
   uint32_t temp_addr    =  0x00020000;
-  short version      =  0;
-  short size         =  0;
-  short text_size    =  0;
-  short fw_index     =  0;
   char     metadata[8];
-  char nonce[16];
-  char tag[16];
-  char RSA_Signature[256];
-  char aes_key[16] = AES_KEY;
+  char     nonce[16];
+  char     tag[16];
+  char     RSA_Signature[256];
+  char     aes_key[16] = AES_KEY;
+  
+  uart_write_str(UART2, "AES Key: ");
   uart_write_char_array(aes_key, 16);
+  nl(UART2);
+  
   while (true) {
     uart_write_str(UART2, "New Page");
     nl(UART2);
+    
     // Get version.
     rcv      = uart_read(UART1, BLOCKING, &read);
     version  = (uint32_t)rcv;
@@ -349,7 +349,6 @@ void load_firmware(void) {
     uart_write_str(UART2, "Received Tag: ");
     uart_write_char_array(tag, 16);
     nl(UART2);
-      
     
     // Get RSA Signature.
     for (int i = 0; i < 256; i++) {
@@ -360,15 +359,16 @@ void load_firmware(void) {
     nl(UART2);
 
     // Metadata
-    metadata[0] = version & 0xFF;
-    metadata[1] = version >> 8;
-    metadata[2] = size & 0xFF;
-    metadata[3] = size >> 8;
-    metadata[4] = index & 0xFF;
-    metadata[5] = index >> 8;
-    metadata[6] = text_size & 0xFF;
-    metadata[7] = text_size >> 8;
+    metadata[0] = version   &  0xFF;
+    metadata[1] = version   >> 0x08;
+    metadata[2] = size      &  0xFF;
+    metadata[3] = size      >> 0x08;
+    metadata[4] = index     &  0xFF;
+    metadata[5] = index     >> 0x08;
+    metadata[6] = text_size &  0xFF;
+    metadata[7] = text_size >> 0x08;
     uart_write(UART1, OK); // Acknowledge the Metadata.
+    uart_write_str(UART2, "Metadata: ");
     uart_write_char_array(metadata, 8);
     nl(UART2);
     
@@ -379,6 +379,7 @@ void load_firmware(void) {
     uint16_t old_version = *fw_version_address;
     if (version != 0 && version < old_version) {
       uart_write_str(UART2, "Version BAD");
+      
       uart_write(UART1, ERROR); // Reject the metadata.
       SysCtlReset();            // Reset device
       return;
@@ -451,14 +452,15 @@ void load_firmware(void) {
         FlashErase(temp_addr + (i * FLASH_PAGESIZE));
       }
       
+      uart_write_str(UART2, "Done writing firmware.");
+      nl(UART2);
+      
       return;
     } else if (index == pindex + 1) {
       uart_write_str(UART2, "Reading frame");
       nl(UART2);
       
       for (int i = 0; i < get_data_size(text_size, 16) / frame_length; i++) {
-//         uart_write_hex(UART2, i);  
-//         nl(UART2);
         for (int j = 0; j < frame_length; j++) {
           data[data_index++] = uart_read(UART1, BLOCKING, &read);
         }
@@ -476,7 +478,7 @@ void load_firmware(void) {
       uart_write_hex(UART2, data_index);
       nl(UART2);
         
-    uart_write_str(UART2, "Key: ");
+      uart_write_str(UART2, "AES Key: ");
       uart_write_char_array(aes_key, 16);
       nl(UART2); 
 
@@ -492,6 +494,11 @@ void load_firmware(void) {
         SysCtlReset();            // Reset device
         return;
       }
+      
+      uart_write_str(UART2, "Plain Text: ");
+      uart_write_char_array(data, data_index);
+      nl(UART2);
+      
       uart_write_str(UART2, "Finished Verifying Integrity and Decrypting");
       nl(UART2);
       
@@ -517,6 +524,7 @@ void load_firmware(void) {
       if (program_flash(temp_addr + page_addr * FLASH_PAGESIZE, data, data_index)) {
         uart_write_str(UART2, "ERROR! While Writing to temp addr");
         nl(UART2);
+        
         uart_write(UART1, ERROR); // Reject the firmware
         SysCtlReset();            // Reset device
         return;
@@ -540,9 +548,10 @@ void load_firmware(void) {
       data_index = 0;
       memset(data, '\0', FLASH_PAGESIZE);
     } else {
-      uart_write(UART1, ERROR); // Reject the metadata.
       uart_write_str(UART2, "Bad Chunk Index");
       nl(UART2);
+      
+      uart_write(UART1, ERROR); // Reject the metadata.
       SysCtlReset();            // Reset device
       return;
     }
