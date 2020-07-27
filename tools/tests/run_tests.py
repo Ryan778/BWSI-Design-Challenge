@@ -112,17 +112,13 @@ if __name__ == '__main__':
         print(f'> Metadata: {metadata}')
         print(f'> Chunk Length: {chunk_length}')
         
-        encrypted = encrypted[(chunk_length + 296):]
-        print(f'> Encrypted: {len(encrypted)}')
-        
-        
         nonce = chunk[8:24]
         print(f'> Nonce: {nonce.hex()}')
         tag = chunk[24:40]
         print(f'> Tag: {tag.hex()}')
         rsasig = chunk[40:296]
         ciphertext = chunk[296:]
-        print(f'> cipher: {ciphertext}')
+#         print(f'> cipher: {ciphertext}')
         print(f'> cipher hex: {ciphertext.hex()}')
         print(f'> cipherlen: {len(ciphertext)}')
         
@@ -132,9 +128,10 @@ if __name__ == '__main__':
             print('> Successfully decrypted')
         else: 
             print('> Decryption failed')
+    print('\nAll chunks read. Checking data against original...')
     with open('tests/testfirmware.bin', 'r') as fp: 
         expected_bin = fp.read()
-    print('decrypted result:', decrypted)
+#     print('decrypted result:', decrypted)
 #     print('expected:', expected_bin)
     if decrypted[:len(expected_bin)] == expected_bin: 
         log_result('fw_protect.py encrypts contents correctly', 0)
@@ -151,6 +148,6 @@ if __name__ == '__main__':
 #     status = subprocess.call('python fw_protect.py --infile ../firmware/firmware/gcc/main.bin --outfile test_firmwareblob.blob --version 4 --message "test works"', shell=True)
 
     print('')
-    print(f'\x1b[92m===================\x1b[0m')
-    print(f'\x1b[92mALL TESTS PASSED 🎉\x1b[0m')
-    print(f'\x1b[92m===================\x1b[0m')
+    print(f'\x1b[92m=======================\x1b[0m')
+    print(f'\x1b[92m| ALL TESTS PASSED 🎉  |\x1b[0m')
+    print(f'\x1b[92m=======================\x1b[0m')
