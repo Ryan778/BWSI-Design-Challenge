@@ -433,8 +433,8 @@ void load_firmware(void) {
       }
       
       // Write new firmware size and version to Flash
-//       metadata = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
-//       program_flash(METADATA_BASE, (uint8_t*)(&metadata), 4);
+      uint32_t METADATA = ((size & 0xFFFF) << 16) | (version & 0xFFFF);
+      program_flash(METADATA_BASE, (uint8_t*)(&METADATA), 4);
       
       // Read from temp_addr. Write to FW_BASE.
       int i = 0;
@@ -454,7 +454,8 @@ void load_firmware(void) {
       
       uart_write_str(UART2, "Done writing firmware.");
       nl(UART2);
-      
+      uart_write_char_array((unsigned char *) FW_BASE, size);
+      nl(UART2);
       return;
     } else if (index == pindex + 1) {
       uart_write_str(UART2, "Reading frame");
@@ -476,8 +477,7 @@ void load_firmware(void) {
       nl(UART2);
       uart_write_str(UART2, "DATA INDEX: ");
       uart_write_hex(UART2, data_index);
-      nl(UART2);
-        
+      nl(UART2);        
       uart_write_str(UART2, "AES Key: ");
       uart_write_char_array(aes_key, 16);
       nl(UART2); 
