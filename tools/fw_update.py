@@ -54,7 +54,7 @@ def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
 
     # Wait for an OK from the bootloader.
     print("Still waiting....")
-    time.sleep(0.1)
+    time.sleep(10)
     
     resp = ser.read(1)
     if resp != RESP_OK:

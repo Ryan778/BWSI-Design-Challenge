@@ -10,6 +10,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import struct
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
@@ -59,6 +60,7 @@ def generate_keys():
 #         file.write(rsakey.publickey().export_key())
     
     st = make_bootloader(aeskey, rsakey.n.to_bytes(256, 'big'), rsakey.e.to_bytes(3, 'big'))
+#     st = make_bootloader(aeskey, struct.pack(">I",  rsakey.n), struct.pack(">I",  rsakey.e))
     if st != 0: # Throw error if build failed
         raise SystemExit(f'Build Failed - Make returned code {st}')
 
