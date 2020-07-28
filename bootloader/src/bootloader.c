@@ -551,10 +551,13 @@ memcpy(temp + data_index, metadata,9);
       nl(UART2);
       uart_write_char_array((unsigned char *) FW_BASE, size);
       nl(UART2);
-      return;
-    } 
       
-      else if (index == pindex + 1) {
+      // Print Release Message
+      uart_write_str(UART2, "Release Message:\n");
+      uart_write_char_array((unsigned char *) fw_release_message_address, data_index);
+      nl(UART2);
+      return;
+    } else if (index == pindex + 1) {
       uart_write_str(UART2, "Reading frame");
       nl(UART2);
       
