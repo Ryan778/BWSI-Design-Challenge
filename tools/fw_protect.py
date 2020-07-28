@@ -101,7 +101,7 @@ def protect_firmware(infile, outfile, version, message):
         ciphertext, tag = aes_cipher.encrypt_and_digest(processed_plain)
         
         #Get RSA Signature
-        h = SHA256.new(ciphertext)
+        h = SHA256.new(ciphertext + metadata)
         signature = pkcs1_15.new(rsa_key).sign(h)
 
 
@@ -124,7 +124,7 @@ def protect_firmware(infile, outfile, version, message):
     #Get Cipher Text
     ciphertext, tag = aes_cipher.encrypt_and_digest(pad(msg, BLOCK_SIZE))
     #Get RSA Signature
-    h = SHA256.new(ciphertext)
+    h = SHA256.new(ciphertext + metadata)
     signature = pkcs1_15.new(rsa_key).sign(h)
     #Final output
     final_output += (metadata + aes_cipher.nonce + tag + signature + ciphertext)

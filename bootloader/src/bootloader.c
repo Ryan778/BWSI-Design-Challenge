@@ -162,6 +162,8 @@ int gcm_decrypt_and_verify(char* key, char* iv, char* ct, int ct_len, char* aad,
 
 int rsa_verify( unsigned char* signature, int sig_len, unsigned char * cipher, int cipher_len){
     
+    
+    
     br_rsa_pkcs1_vrfy fvrfy =  &br_rsa_i15_pkcs1_vrfy;
     uart_write_str(UART2, "RSA Verification");
     nl(UART2);
@@ -170,8 +172,10 @@ int rsa_verify( unsigned char* signature, int sig_len, unsigned char * cipher, i
     uart_write_str(UART2, "1");
     nl(UART2);
     
+    
+    
     unsigned char hash[32];
-    sha_hash(cipher, cipher_len, hash);
+    sha_hash(cipher, (cipher_len + 8), hash);
     
     uart_write_str(UART2, "HASH");
     uart_write_char_array(hash, 32);
@@ -468,6 +472,26 @@ void load_firmware(void) {
         }
         uart_write(UART1, OK); // Acknowledge the frame.
       }
+        
+        unsigned char temp[1024 + 9];
+    
+    memcpy(temp,data,data_index);
+memcpy(temp + data_index, metadata,9);
+          
+    uart_write_str(UART2, "TEMP");
+    uart_write_char_array(temp, (data_index + 8));
+    nl(UART2);
+        
+        if(rsa_verify(RSA_Signature, sizeof RSA_Signature, temp, data_index) == 0){
+        uart_write_str(UART2, "Signature does not match");
+        nl(UART2);
+        uart_write(UART1, ERROR); // Reject the signature.
+        SysCtlReset();            // Reset device
+      }
+          
+        uart_write_str(UART2, "Signature match done");
+        nl(UART2);
+
       
       // Verify Integrity and Decrypt
       if (gcm_decrypt_and_verify(aes_key, nonce, data, data_index, metadata, 8, tag) == 0) {
@@ -557,7 +581,18 @@ void load_firmware(void) {
           
 //     Verify RSA
           
-    if(rsa_verify(RSA_Signature, sizeof RSA_Signature, data, data_index) == 0){
+          
+    unsigned char temp[1024 + 9];
+    
+    memcpy(temp,data,data_index);
+memcpy(temp + data_index, metadata,9);
+          
+    uart_write_str(UART2, "TEMP");
+    uart_write_char_array(temp, (data_index + 8));
+    nl(UART2);
+          
+          
+    if(rsa_verify(RSA_Signature, sizeof RSA_Signature, temp, data_index) == 0){
         uart_write_str(UART2, "Signature does not match");
         nl(UART2);
         uart_write(UART1, ERROR); // Reject the signature.
