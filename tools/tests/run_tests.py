@@ -46,9 +46,9 @@ def aes_decrypt(nonce_var, metadata, cipher_text, tag_var, key, chunk):
         log_result(f'Failed to decrypt and verify chunk {chunk}', 1)
         return ''
     
-def verify_rsa(ciphertext, key, signature):
+def verify_rsa(ciphertext, key, signature, metadata):
     try:
-        h = SHA256.new(ciphertext)
+        h = SHA256.new(ciphertext + metadata)
         print(f'hash{h.hexdigest()}')
         pkcs1_15.new(key).verify(h, signature)
         print("yay")
@@ -135,7 +135,7 @@ if __name__ == '__main__':
         print(f'> cipherlen: {len(ciphertext)}')
         
         out = aes_decrypt(nonce, metadata, ciphertext, tag, aes_key, curChunk)
-        verify_rsa(ciphertext, rsa_key, rsasig)
+        verify_rsa(ciphertext, rsa_key, rsasig, metadata)
         if out != '':
             decrypted += out
             print('> Successfully decrypted')
