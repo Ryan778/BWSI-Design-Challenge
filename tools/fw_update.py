@@ -56,7 +56,8 @@ def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
 
     resp = ser.read(1)
     if resp != RESP_OK:
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
+        print("\n[X] Firmware update failed. Is the firmware file valid? (E_{})".format(repr(resp)))
+        os.exit(1)
 
         
 #Send each frame to the bootloader
@@ -69,12 +70,8 @@ def send_frame(ser, frame, debug=False):
     resp = ser.read(1) # Wait for an OK from the bootloader
 
     if resp != RESP_OK: 
-        raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-        
-    #If the bootloader receives a one byte, resend the frame and increment error counter
-    if resp == RESP_ERR:
-        error_counter += 1
-        send_frame(ser, frame, debug=debug)
+        print("\n[X] Firmware update failed. Is the firmware file valid? (E_{})".format(repr(resp)))
+        os.exit(1)
         
 
 def main(ser, infile, debug):
@@ -86,7 +83,7 @@ def main(ser, infile, debug):
     
     error_counter = 0
     
-    #Handshake with bootloader, wait for bootloader to respond with a 'U'
+    # Handshake with bootloader, wait for bootloader to respond with a 'U'
     ser.write(b'U')
 
     spin = Spinner('Connecting to the bootloader... ')
@@ -133,21 +130,19 @@ def main(ser, infile, debug):
         
         # Iterate through each 16 byte frame in the chunk
         for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
+            # Advance the progress bar
             bar.next() 
-            data = firmware[frame_start: frame_start + FRAME_SIZE] #frame
+            
+            # Get current frame
+            data = firmware[frame_start: frame_start + FRAME_SIZE] 
 
-            # Get length of data.
+            # Get length of data
             length = len(data)
             frame_fmt = '<{}s'.format(length)
 
             # Construct frame.
             frame = struct.pack(frame_fmt, data)
 
-            # If there are more than ten errors in a row, then restart the update.
-            if error_counter > 10:
-                print("Terminating, restarting update...")
-                return
-            
             # Send the frame to bootloader
             send_frame(ser, frame, debug=debug)
         
