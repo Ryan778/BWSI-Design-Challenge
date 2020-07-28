@@ -43,16 +43,14 @@ def protect_firmware(infile, outfile, version, message):
     key = secrets[0:16]
     rsa_key = RSA.import_key(secrets[16:])
     
-    print("KEYS")
+#     print("KEYS")
     
-    #print(key)
-    print(rsa_key.size_in_bytes())
+#     #print(key)
+#     print(rsa_key.size_in_bytes())
 
     # Create variable to hold message
-    msg = message.encode() + b'\00'
+    msg = message.encode() 
 
-    # Pack version and size into two little-endian shorts
-    # metadata = struct.pack('<HH', version, len(firmware))
 
     #Split firmware into 1K chunks, make list of all the chunks
     chunks_needed = int(len(firmware)/CHUNK_SIZE)
@@ -66,14 +64,11 @@ def protect_firmware(infile, outfile, version, message):
     #Add the remaining chunk from the firmware (that is not 1K bytes)
     if(CHUNK_SIZE * (chunks_needed) - len(firmware) != 0):
         print("Extra")
-        print(firmware[CHUNK_SIZE * (chunks_needed):])
         chunks.append(firmware[CHUNK_SIZE * (chunks_needed):])
         
     
     for chunk in chunks:
         print(len(chunk))
-
-
 
 #   key = get_random_bytes(16) #For Testing Purposes only
 
@@ -122,15 +117,21 @@ def protect_firmware(infile, outfile, version, message):
     metadata = struct.pack('<hhhh', version, len(firmware), -1,  len(message) )
     aes_cipher.update(metadata)
     #Get Cipher Text
-    ciphertext, tag = aes_cipher.encrypt_and_digest(pad(msg, BLOCK_SIZE))
+    processed_plain = b''
+    if(len(msg) % BLOCK_SIZE == 0):
+        processed_plain = msg
+    else:
+        processed_plain = pad(msg, BLOCK_SIZE)
+    print(processed_plain)
+    ciphertext, tag = aes_cipher.encrypt_and_digest(processed_plain)
     #Get RSA Signature
-    h = SHA256.new(ciphertext + metadata)
+    h = SHA256.new(ciphertext)
     signature = pkcs1_15.new(rsa_key).sign(h)
     #Final output
     final_output += (metadata + aes_cipher.nonce + tag + signature + ciphertext)
 
 #   More Testing
-    print(final_output)
+#     print(final_output)
 
 #   Write firmware blob to outfile
     with open(outfile, 'wb') as outfile:

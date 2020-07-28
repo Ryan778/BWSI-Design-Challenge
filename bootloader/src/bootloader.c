@@ -157,9 +157,12 @@ int rsa_verify( unsigned char* signature, int sig_len, unsigned char * cipher, i
     uart_write_str(UART2, "RSA Verification");
     nl(UART2);
     
+    
+    
 //     Calculate Hash from ciphertext
     unsigned char hash[32];
     sha_hash(cipher, (cipher_len + 8), hash);
+    
     
 //     Calculate Hash from RSA 
     unsigned char output_hash_buffer[32];
@@ -426,21 +429,25 @@ void load_firmware(void) {
       }
         
 //         Create temp buffer for data + metadata
-        unsigned char temp[1024 + 9];
-        memcpy(temp,data,data_index);
-        memcpy(temp + data_index, metadata,9);
+//         unsigned char temp[1024 + 9];
+//         memcpy(temp,data,data_index);
+//         memcpy(temp + data_index, metadata,9);
+        
+        uart_write_str(UART2, "Data: ");
+        uart_write_char_array(data, data_index);
+        nl(UART2);
         
 //         Verify RSA Signature
         
-        if(rsa_verify(RSA_Signature, sizeof RSA_Signature, temp, data_index) == 0){
+        if(rsa_verify(RSA_Signature, sizeof RSA_Signature, data, (data_index - 8)) == 0){
         uart_write_str(UART2, "Signature does not match");
         nl(UART2);
         uart_write(UART1, ERROR); // Reject the signature.
         SysCtlReset();            // Reset device
       }
-          
-        uart_write_str(UART2, "Signature match done");
-        nl(UART2);
+        
+
+        
 
       
       // Verify AES GCM
