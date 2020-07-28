@@ -57,7 +57,7 @@ def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
     resp = ser.read(1)
     if resp != RESP_OK:
         print("\n[X] Firmware update failed. Is the firmware file valid? (E_{})".format(repr(resp)))
-        os.exit(1)
+        os._exit(1)
 
         
 #Send each frame to the bootloader
@@ -71,7 +71,7 @@ def send_frame(ser, frame, debug=False):
 
     if resp != RESP_OK: 
         print("\n[X] Firmware update failed. Is the firmware file valid? (E_{})".format(repr(resp)))
-        os.exit(1)
+        os._exit(1)
         
 
 def main(ser, infile, debug):
