@@ -23,9 +23,15 @@ In our case, the data is from one line of the Intel Hex formated .hex file
 
 """
 
+from pb.bar import ShadyBar
+from pb.spinner import Spinner
+from serial import SerialException
+
+import os
 import argparse
 import struct
 import time
+import math
 
 from serial import Serial
 
@@ -41,21 +47,12 @@ error_counter = 0
 #Send the metadata to the bootloader and wait for an "OK" message before proceeding
 def send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=False):
     version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
-    print(f'Version: {version}\nSize: {size} bytes\nChunk: {chunk_size} bytes\nIndex: {chunk_index}\n')
-
-    if debug:
-        print(metadata)
-        
     # Send the metadata to bootloader.
     ser.write(metadata)
     ser.write(nonce)
     ser.write(tag)
     ser.write(rsa_sign)
 
-    # Wait for an OK from the bootloader.
-    print("Still waiting....")
-    time.sleep(10)
-    
     resp = ser.read(1)
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
@@ -70,13 +67,8 @@ def send_frame(ser, frame, debug=False):
         
     resp = ser.read(1)  # Wait for an OK from the bootloader
 
-    print(f'resp{resp}')
-
     if resp != RESP_OK:
         raise RuntimeError("ERROR: Bootloader responded with {}".format(repr(resp)))
-
-    if debug:
-        print("Resp: {}".format(ord(resp)))
         
     #If the bootloader receives a one byte, resend the frame and increment error counter
     if resp == RESP_ERR:
@@ -85,6 +77,8 @@ def send_frame(ser, frame, debug=False):
         
 
 def main(ser, infile, debug):
+    print('\n\x1b[92mWelcome to the C.I.A. Firmware Update Tool!')
+    print('(C) 2020 Completely Insecure Alice\x1b[0m\n')
     # Open serial port. Set baudrate to 115200. Set timeout to 2 seconds.
     with open(infile, 'rb') as fp:
         firmware_blob = fp.read()
@@ -94,16 +88,15 @@ def main(ser, infile, debug):
     #Handshake with bootloader, wait for bootloader to respond with a 'U'
     ser.write(b'U')
 
-    print('Waiting for bootloader to enter update mode...')
+    spin = Spinner('Connecting to the bootloader... ')
     resp = ser.read(1)
-    print(resp)
     
     #Wait until 'U' is received
     while resp != b'U':
-        resp = ser.read(1)
-        print(resp)
-        print('Waiting...')
-    print('Updating...')
+      spin.next()
+      time.sleep(0.1)
+    spin.finish()
+    print('Success! Update will now begin.\n')
     
     #Iterate through all packets in the firmware blob, and split into 16 byte frames
     fw_size  = struct.unpack('<h', firmware_blob[2 : 4])[0]
@@ -111,9 +104,10 @@ def main(ser, infile, debug):
     cur_loc = 0
     release = False;
     
+    bar = ShadyBar('\x1b[96mUpdating\x1b[0m', max=(math.ceil(fw_size/FRAME_SIZE)), suffix='%(percent)d%%')
+    
     #Iterate through all chunks until release message
     while(not release):
-        print(cur_loc)
         metadata = firmware_blob[cur_loc:cur_loc + 8]
         nonce = firmware_blob[cur_loc + 8:cur_loc + 24]
         tag = firmware_blob[cur_loc + 24:cur_loc + 40]
@@ -121,9 +115,6 @@ def main(ser, infile, debug):
         version, size, chunk_index, chunk_size  = struct.unpack('<hhhh', metadata)
 
         #Reached the release message
-
-        print(f'Chunk Index: {chunk_index}')
-        
 
         if(chunk_index == -1):
             release = True;
@@ -135,17 +126,14 @@ def main(ser, infile, debug):
         
         #Each chunk to be split into frames
         firmware = firmware_blob[cur_loc + 296: cur_loc + actual_size + 296]
-        print(len(firmware))
-        print(firmware)
         
         #Send metadata to bootloader with nonce, tag, and rsa signature
         send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=debug)
         
-        print(range(0, len(firmware), FRAME_SIZE))
         
         #Iterate through each 16 byte frame in the chunk
         for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
-            print(f'Frame{idx}')
+            bar.next() 
             data = firmware[frame_start: frame_start + FRAME_SIZE] #frame
 
             # Get length of data.
@@ -159,63 +147,15 @@ def main(ser, infile, debug):
             if error_counter > 10:
                 print("Terminating, restarting update...")
                 return
-
-            if debug:
-                print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
             
             #Send the frame to bootloader
             send_frame(ser, frame, debug=debug)
             
         cur_loc += (actual_size + 296)
-        
-    print("Done writing firmware.")
-    return ser
-
-        
-            
-        
-#     for i in range(0, f):
-#         print(f"Currently in chunk {i}")
-      
-#         metadata = firmware_blob[i * PACKET_SIZE : i * PACKET_SIZE = 1024 + 8]
-#         nonce = firmware_blob[i * PACKET_SIZE = 1024 + 8 : i * PACKET_SIZE = 1024 + 24]
-#         tag = firmware_blob[i * PACKET_SIZE = 1024 + 24 : i * PACKET_SIZE = 1024 + 40]
-#         rsa_sign = firmware_blob[i * PACKET_SIZE = 1024 + 40 : i * PACKET_SIZE = 1024 + 296]
-        
-#         send_metadata(ser, metadata, nonce, tag, rsa_sign, debug=debug)
- 
-#         fw_size  = struct.unpack('<H', firmware_blob[i * chunk_size + 2 : i * chunk_size + 4])[0]
-#         chunk_size = struct.unpack('<H', firmware_blob[i * chunk_size + 6 : i * chunk_size + 8])[0]
-#         packet_index = struct.unpack('<H', firmware_blob[i * chunk_size + 4 : i * chunk_size + 6])[0]
-        
-#         fw_start = PACKET_SIZE * packet_index + 296
-#         firmware = firmware_blob[fw_start : fw_start + chunk_size]
-  
-#         for idx, frame_start in enumerate(range(0, len(firmware), FRAME_SIZE)):
-#             data = firmware[frame_start: frame_start + FRAME_SIZE]
-
-#             # Get length of data.
-#             length = len(data)
-#             frame_fmt = '<{}s'.format(length)
-
-#             # Construct frame.
-#             frame = struct.pack(frame_fmt, data)
-
-#             #If there are more than ten errors in a row, then restart the update.
-#             if error_counter > 10:
-#                 print("Terminating, restarting update...")
-#                 return
-
-#             if debug:
-#                 print("Writing frame {} ({} bytes)...".format(idx, len(frame)))
-
-#             send_frame(ser, frame, debug=debug)
-
     
-
-    # Send a zero length payload to tell the bootlader to finish writing its page.
-#     ser.write(struct.pack('<H', 0x0000))
-
+    bar.finish()
+    print("\n✔ Firmware update successfully installed.")
+    return ser
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Firmware Update Tool')
@@ -227,7 +167,9 @@ if __name__ == '__main__':
     parser.add_argument("--debug", help="Enable debugging messages.",
                         action='store_true')
     args = parser.parse_args()
-
-    print('Opening serial port...')
-    ser = Serial(args.port, baudrate=115200, timeout=2)
-    main(ser=ser, infile=args.firmware, debug=args.debug)
+    try: 
+      ser = Serial(args.port, baudrate=115200, timeout=2)
+      main(ser=ser, infile=args.firmware, debug=args.debug)
+    except SerialException:
+      print('[!] Error: The serial port specified is not open.')
+      os._exit(os.EX_OK) 
