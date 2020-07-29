@@ -224,7 +224,16 @@ int get_data_size(float n, float m) {
   return ceil(n / m) * m;
 }
 
+int get_release_message_address() {
+  int FW_SIZE = *fw_size_address;
+  FW_SIZE = get_data_size(FW_SIZE, FLASH_PAGESIZE);
+  return FW_BASE + FW_SIZE;
+}
+
 int main(void) {
+  
+  fw_release_message_address = get_release_message_address();
+  
   // Initialize UART channels
   // 0: Reset
   // 1: Host Connection
@@ -445,10 +454,9 @@ void load_firmware(void) {
         uart_write(UART1, ERROR); // Reject the signature.
         SysCtlReset();            // Reset device
       }
-        
-
-        
-
+      
+      
+      
       
       // Verify AES GCM
       if (gcm_decrypt_and_verify(aes_key, nonce, data, data_index, metadata, 8, tag) == 0) {
@@ -495,7 +503,7 @@ void load_firmware(void) {
       program_flash(FW_BASE + (i * FLASH_PAGESIZE), ((unsigned char *) temp_addr) + (i * FLASH_PAGESIZE), size % FLASH_PAGESIZE);
       
       // Write release message to Flash
-      fw_release_message_address = (uint8_t *) (FW_BASE + size);
+      fw_release_message_address = get_release_message_address();
       program_flash(fw_release_message_address, ((unsigned char *) temp_addr) + ((i + 1) * FLASH_PAGESIZE), FLASH_PAGESIZE);
       
       // Clear temp_addr
