@@ -41,7 +41,7 @@ def protect_firmware(infile, outfile, version, message):
     rsa_key = RSA.import_key(secrets[16:])
 
     # Create variable to hold message
-    msg = message.encode() 
+    msg = message.encode() + b'\00'
 
 
     #Split firmware into 1K chunks, make list of all the chunks
@@ -89,7 +89,7 @@ def protect_firmware(infile, outfile, version, message):
     # Add release message, with packet index -1
     aes_cipher = AES.new(key, AES.MODE_GCM)
     #Set up metadata
-    metadata = struct.pack('<hhhh', version, len(firmware), -1,  len(message) )
+    metadata = struct.pack('<hhhh', version, len(firmware), -1,  len(msg))
     aes_cipher.update(metadata)
     #Get Cipher Text
     processed_plain = b''
